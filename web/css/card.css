@@ -1,0 +1,277 @@
+/* Стили для карточек бойцов */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.stat-item:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.stat-number {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #0d6efd;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+}
+
+/* Стили для карточек */
+.fighter-card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid rgba(0, 0, 0, 0.125);
+    transition: all 0.3s ease;
+}
+
+.fighter-card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+    font-weight: 600;
+}
+
+/* Стили для фотографий */
+.photo-card {
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+}
+
+.photo-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.photo-placeholder {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border: 2px dashed #dee2e6;
+}
+
+/* Стили для наград */
+.award-card {
+    border-left: 4px solid #ffc107;
+    transition: all 0.3s ease;
+}
+
+.award-card:hover {
+    border-left-color: #fd7e14;
+    transform: translateX(5px);
+}
+
+/* Стили для пленений */
+.capture-card {
+    border-left: 4px solid #dc3545;
+    transition: all 0.3s ease;
+}
+
+.capture-card:hover {
+    border-left-color: #c82333;
+    transform: translateX(5px);
+}
+
+/* Стили для биографии и дополнительной информации */
+.info-card {
+    border-left: 4px solid #0d6efd;
+}
+
+.biography-content,
+.additional-info-content {
+    line-height: 1.6;
+    font-size: 1rem;
+}
+
+.biography-content p,
+.additional-info-content p {
+    margin-bottom: 1rem;
+}
+
+/* Стили для кнопок действий */
+.action-buttons .btn-group {
+    gap: 0.5rem;
+}
+
+.action-buttons .btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+/* Стили для табов */
+.nav-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 500;
+    border: none;
+    padding: 0.75rem 1rem;
+    transition: all 0.3s ease;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #0d6efd;
+    background-color: #f8f9fa;
+    border: none;
+}
+
+.nav-tabs .nav-link.active {
+    color: #0d6efd;
+    background-color: white;
+    border-bottom: 3px solid #0d6efd;
+    font-weight: 600;
+}
+
+/* Стили для DetailView */
+.table.detail-view {
+    margin-bottom: 0;
+}
+
+.table.detail-view th {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+    width: 30%;
+}
+
+.table.detail-view td {
+    border-bottom: 1px solid #dee2e6;
+    background-color: white;
+}
+
+/* Стили для бейджей */
+.badge-status {
+    font-size: 0.8em;
+    padding: 0.4em 0.8em;
+    border-radius: 20px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .action-buttons .btn-group {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .action-buttons .btn {
+        margin-bottom: 0.5rem;
+        width: 100%;
+    }
+    
+    .table.detail-view th,
+    .table.detail-view td {
+        display: block;
+        width: 100%;
+        border: none;
+    }
+    
+    .table.detail-view th {
+        background-color: #e9ecef;
+        border-bottom: none;
+        padding-top: 1rem;
+    }
+    
+    .table.detail-view td {
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .table.detail-view tr:last-child td {
+        border-bottom: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .photo-card,
+    .award-card,
+    .capture-card {
+        margin-bottom: 1rem;
+    }
+    
+    .nav-tabs .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fighter-card,
+.photo-card,
+.award-card,
+.capture-card {
+    animation: fadeIn 0.5s ease;
+}
+
+/* Стили для пустых состояний */
+.alert-info {
+    border-left: 4px solid #0dcaf0;
+    background-color: #f8f9fa;
+}
+
+/* Стили для изображений */
+.img-fluid {
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+/* Стили для заголовков */
+.card-title {
+    color: #2c3e50;
+    font-weight: 600;
+}
+
+/* Стили для текста */
+.text-muted {
+    color: #6c757d !important;
+}
+
+/* Стили для хлебных крошек */
+.breadcrumb {
+    background-color: transparent;
+    padding: 0.75rem 0;
+}
+
+.breadcrumb-item a {
+    color: #6c757d;
+    text-decoration: none;
+}
+
+.breadcrumb-item a:hover {
+    color: #0d6efd;
+}
+
+.breadcrumb-item.active {
+    color: #2c3e50;
+    font-weight: 500;
+}

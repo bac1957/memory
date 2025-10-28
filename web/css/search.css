@@ -1,0 +1,142 @@
+/* search.css */
+/* Упрощенная поисковая форма */
+.search-form-wrapper {
+    margin-top: 2rem;
+}
+
+.main-search-form .search-input-group {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+.search-input {
+    height: 60px;
+    font-size: 1.1rem;
+    padding: 1rem 1.5rem;
+    border: 2px solid #3498db;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+}
+
+.search-input:focus {
+    border-color: #2980b9;
+    box-shadow: none;
+}
+
+.search-btn {
+    height: 60px;
+    border-radius: 0 8px 8px 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border: 2px solid #3498db;
+    border-left: none;
+    padding: 0 2rem;
+}
+
+/* Подсказки по поиску */
+.search-hints {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+}
+
+.search-examples {
+    margin-bottom: 0.5rem;
+}
+
+.search-example {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.25rem 0.75rem;
+    margin: 0.25rem;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.search-help {
+    font-size: 0.9rem;
+}
+
+/* Результаты поиска */
+.search-info {
+    border-bottom: 1px solid #dee2e6;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
+
+.no-results {
+    padding: 4rem 2rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.no-results-icon {
+    margin-bottom: 1.5rem;
+    opacity: 0.5;
+}
+
+.suggestions {
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.suggestions ul {
+    margin-bottom: 0;
+}
+
+/* Герой-секция */
+.hero-section {
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+    color: white;
+    margin-bottom: 0;
+    padding: 2rem 0;
+}
+
+.hero-title {
+    font-size: 2.2rem;
+    font-weight: 300;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+/* Упрощенная поисковая форма */
+.search-form-wrapper {
+    margin-top: 1rem;
+}
+
+.main-search-form .search-input-group {
+    margin-bottom: 0;
+    flex-grow: 1;
+}
+
+.search-input {
+    height: 55px;
+    font-size: 1rem;
+    padding: 0.8rem 1.2rem;
+    border: 2px solid #3498db;
+    border-right: none;
+    border-radius: 6px 0 0 6px;
+}
+
+.search-input:focus {
+    border-color: #2980b9;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.search-btn {
+    height: 55px;
+    border-radius: 0 6px 6px 0;
+    font-size: 1rem;
+    font-weight: 600;
+    border: 2px solid #3498db;
+    border-left: none;
+    padding: 0 1.5rem;
+    transition: all 0.3s ease;
+}
+
+.search-btn:hover {
+    background-color: #2980b9;
+    border-color: #2980b9;
+}

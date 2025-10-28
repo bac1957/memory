@@ -1,0 +1,54 @@
+/* gallery.css */
+/* Стили для фотографий */
+.main-photo-img {
+    max-height: 400px;
+    width: auto;
+    margin: 0 auto;
+}
+
+.gallery-thumb {
+    height: 200px;
+    width: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.gallery-thumb:hover {
+    transform: scale(1.05);
+}
+
+.photo-item .thumbnail {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.photo-item .caption {
+    padding: 9px;
+    background: #f8f8f8;
+}
+
+.no-photo {
+    text-align: center;
+    padding: 40px;
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+}
+
+.no-photo .glyphicon {
+    font-size: 48px;
+    color: #ccc;
+    margin-bottom: 15px;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .gallery-thumb {
+        height: 150px;
+    }
+    
+    .main-photo-img {
+        max-height: 300px;
+    }
+}

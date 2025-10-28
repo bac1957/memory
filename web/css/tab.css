@@ -1,0 +1,344 @@
+/* Стили для табов и форм бойцов */
+.fighter-form {
+    background: #fff;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+}
+
+/* Стили для кастомных табов */
+.custom-tabs .nav-tabs {
+    border-bottom: 2px solid #dee2e6;
+    margin-bottom: 20px;
+}
+
+.custom-tabs .nav-tabs .nav-link {
+    border: none;
+    color: #6c757d;
+    font-weight: 500;
+    padding: 12px 20px;
+    margin-right: 5px;
+    border-radius: 8px 8px 0 0;
+    transition: all 0.3s ease;
+}
+
+.custom-tabs .nav-tabs .nav-link:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.custom-tabs .nav-tabs .nav-link.active {
+    background-color: #fff;
+    color: #0d6efd;
+    border-bottom: 3px solid #0d6efd;
+    font-weight: 600;
+}
+
+.custom-tabs .nav-tabs .nav-link i {
+    margin-right: 8px;
+    font-size: 1.1em;
+}
+
+/* Стили для действий формы */
+.form-actions {
+    background: #f8f9fa;
+    margin: 0 -20px -20px -20px;
+    padding: 20px;
+    border-radius: 0 0 10px 10px;
+}
+
+/* Стили для элементов пленений и наград */
+.capture-item, .award-item {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    border-left: 4px solid #0d6efd;
+    transition: all 0.3s ease;
+}
+
+.capture-item:hover, .award-item:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.capture-item {
+    border-left-color: #dc3545;
+}
+
+.award-item {
+    border-left-color: #ffc107;
+}
+
+/* Стили для кнопок */
+.btn-lg {
+    padding: 10px 25px;
+    font-weight: 600;
+}
+
+.btn i {
+    margin-right: 5px;
+}
+
+/* Стили для карточек в табах */
+.tab-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.tab-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.tab-card .card-header {
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    font-weight: 600;
+    padding: 12px 15px;
+}
+
+.tab-card .card-body {
+    padding: 15px;
+}
+
+/* Стили для групп полей */
+.field-group {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #6c757d;
+}
+
+.field-group-title {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
+    font-size: 1.1em;
+}
+
+/* Стили для динамически добавляемых элементов */
+.dynamic-item {
+    position: relative;
+    padding: 15px;
+    background: #fff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+}
+
+.dynamic-item:hover {
+    border-color: #0d6efd;
+    box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
+}
+
+.dynamic-item .remove-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+/* Стили для состояний валидации */
+.is-invalid {
+    border-color: #dc3545 !important;
+}
+
+.is-valid {
+    border-color: #198754 !important;
+}
+
+.invalid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #dc3545;
+}
+
+.valid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875em;
+    color: #198754;
+}
+
+/* Стили для подсказок */
+.form-text {
+    font-size: 0.875em;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+/* Стили для обязательных полей */
+.required label::after {
+    content: " *";
+    color: #dc3545;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dynamic-item {
+    animation: fadeIn 0.3s ease;
+}
+
+/* Стили для иконок статусов */
+.status-icon {
+    margin-right: 5px;
+    font-weight: bold;
+}
+
+/* Стили для превью фотографий */
+.photo-preview {
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+}
+
+.photo-preview:hover {
+    border-color: #0d6efd;
+    background: #e7f1ff;
+}
+
+.photo-preview img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 6px;
+}
+
+/* Стили для счетчиков в табах */
+.tab-badge {
+    margin-left: 6px;
+    font-size: 0.75em;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .fighter-form {
+        padding: 15px;
+        margin: 0 -15px;
+        border-radius: 0;
+        box-shadow: none;
+    }
+    
+    .custom-tabs .nav-tabs .nav-link {
+        padding: 10px 15px;
+        font-size: 0.9rem;
+        margin-right: 2px;
+    }
+    
+    .custom-tabs .nav-tabs .nav-link i {
+        margin-right: 5px;
+        font-size: 1em;
+    }
+    
+    .form-actions {
+        margin: 0 -15px -15px -15px;
+        padding: 15px;
+    }
+    
+    .form-actions .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .form-actions .text-end {
+        text-align: left !important;
+    }
+    
+    .capture-item, .award-item {
+        padding: 10px;
+    }
+    
+    .field-group {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .fighter-form {
+        padding: 10px;
+    }
+    
+    .custom-tabs .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    .custom-tabs .nav-tabs .nav-link {
+        display: inline-block;
+        float: none;
+    }
+    
+    .btn-lg {
+        padding: 8px 20px;
+        font-size: 0.9rem;
+    }
+}
+
+/* Стили для темной темы (опционально) */
+@media (prefers-color-scheme: dark) {
+    .fighter-form {
+        background: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .custom-tabs .nav-tabs {
+        border-bottom-color: #4a5568;
+    }
+    
+    .custom-tabs .nav-tabs .nav-link {
+        color: #a0aec0;
+    }
+    
+    .custom-tabs .nav-tabs .nav-link:hover {
+        background-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .custom-tabs .nav-tabs .nav-link.active {
+        background-color: #2d3748;
+        color: #63b3ed;
+        border-bottom-color: #63b3ed;
+    }
+    
+    .form-actions {
+        background: #4a5568;
+    }
+    
+    .capture-item, .award-item {
+        background: #4a5568;
+    }
+    
+    .field-group {
+        background: #4a5568;
+    }
+    
+    .tab-card {
+        border-color: #4a5568;
+        background: #2d3748;
+    }
+    
+    .tab-card .card-header {
+        background: #4a5568;
+        border-bottom-color: #718096;
+    }
+}

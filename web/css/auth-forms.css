@@ -1,0 +1,155 @@
+/* auth-forms.css */
+/* Стили для форм авторизации и регистрации */
+.site-login,
+.site-signup {
+    padding: 2rem 0;
+    background: #f8f9fa;
+    min-height: calc(100vh - 200px);
+    display: flex;
+    align-items: flex-start;
+}
+
+.site-login .card,
+.site-signup .card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+    margin: 0 auto;
+    width: 100%;
+}
+
+.site-login .card {
+    max-width: 500px;
+}
+
+.site-signup .card {
+    max-width: 800px;
+}
+
+.card-header {
+    background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+    color: white;
+    border-radius: 12px 12px 0 0 !important;
+    border: none;
+    padding: 1.5rem;
+}
+
+.card-title {
+    margin: 0;
+    font-weight: 300;
+    font-size: 1.5rem;
+}
+
+.card-body {
+    padding: 2rem;
+}
+
+/* Стили для форм */
+.form-horizontal .form-group {
+    margin-bottom: 1rem;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.form-control {
+    border-radius: 6px;
+    border: 1px solid #ced4da;
+    padding: 0.75rem;
+    font-size: 1rem;
+}
+
+.form-control:focus {
+    border-color: #3498db;
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+.invalid-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #dc3545;
+}
+
+/* Чекбокс "Запомнить меня" */
+.form-check {
+    padding-left: 0;
+}
+
+.form-check-input {
+    margin-right: 0.5rem;
+}
+
+.form-check-label {
+    margin-bottom: 0;
+}
+
+/* Кнопки */
+.btn-block {
+    padding: 0.75rem;
+    font-size: 1.1rem;
+    border-radius: 6px;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 768px) {
+    .site-login,
+    .site-signup {
+        padding: 1rem 0;
+        min-height: calc(100vh - 150px);
+    }
+    
+    .site-login .card,
+    .site-signup .card {
+        margin: 0 1rem;
+        max-width: none;
+    }
+    
+    .card-body {
+        padding: 1.5rem;
+    }
+    
+    .card-title {
+        font-size: 1.3rem;
+    }
+    
+    .site-signup .row .col-md-4 {
+        margin-bottom: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn-block {
+        font-size: 1rem;
+        padding: 0.6rem;
+    }
+}
+
+/* Дополнительные стили для улучшения внешнего вида */
+.alert-info {
+    border-radius: 6px;
+    border: 1px solid #b6d4fe;
+}
+
+.text-center a {
+    color: #3498db;
+    text-decoration: none;
+}
+
+.text-center a:hover {
+    color: #2980b9;
+    text-decoration: underline;
+}
+
+/* Убираем лишние отступы */
+.form-horizontal .form-group:last-child {
+    margin-bottom: 0;
+}

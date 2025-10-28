@@ -1,0 +1,101 @@
+/* layout.css */
+/* Основной контент */
+.main-content-section {
+    padding: 2rem 0;
+    background: #f8f9fa;
+    min-height: 60vh;
+}
+
+/* Боковая панель статистики */
+.stats-sidebar {
+    background: #dafd9c;
+    border-radius: 12px;
+    padding: 1.2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    border: 1px solid #c8e87c;
+}
+
+.stats-header {
+    border-bottom: 1px solid #c8e87c;
+    padding-bottom: 0.8rem;
+    margin-bottom: 1rem;
+}
+
+.stats-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #2c3e50;
+    text-align: center;
+}
+
+.stats-content {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.stat-item-vertical {
+    text-align: center;
+    padding: 0.6rem;
+    background: rgba(255, 255, 255, 0.7);
+    border-radius: 8px;
+    border: 1px solid rgba(200, 232, 124, 0.5);
+}
+
+.stat-item-vertical .stat-number {
+    font-size: 1.3rem;
+    font-weight: bold;
+    margin-bottom: 0.2rem;
+    line-height: 1.2;
+}
+
+.stat-item-vertical .stat-label {
+    font-size: 0.75rem;
+    color: #5a6268;
+    text-transform: uppercase;
+    font-weight: 500;
+    line-height: 1.0;
+}
+
+/* Цвета для статистики */
+.stat-item-vertical .text-success { color: #28a745 !important; }
+.stat-item-vertical .text-danger { color: #dc3545 !important; }
+.stat-item-vertical .text-warning { color: #ffc107 !important; }
+.stat-item-vertical .text-info { color: #17a2b8 !important; }
+
+/* Карточки бойцов */
+.fighters-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.2rem;
+    margin: 0;
+}
+
+.fighter-card {
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.fighter-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+}
+
+/* Сообщение когда нет результатов */
+.no-results {
+    padding: 3rem 2rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+}
+
+.no-results-icon {
+    margin-bottom: 1rem;
+    opacity: 0.5;
+}
