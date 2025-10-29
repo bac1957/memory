@@ -35,49 +35,54 @@ class FighterController extends Controller
         ];
     }
 
-public function actionCreate()
-{
-    $model = new Fighter();
-    $captures = [new FighterCapture()];
-    $awards = [new FighterAward()];
+    public function actionCreate()
+    {
+        $model = new Fighter();
+        $captures = [new FighterCapture()];
+        $awards = [new FighterAward()];
 
-    if (Yii::$app->request->isPost) {
-        $postData = Yii::$app->request->post();
+        if (Yii::$app->request->isPost) {
+            $postData = Yii::$app->request->post();
+            $this->debugLoadIssue($model, $postData);
         
-        // Загружаем основные данные бойца
-        if ($model->load($postData)) {
-            // Убеждаемся, что обязательные поля установлены
-            $model->user_id = Yii::$app->user->id;
+            if ($model->load($postData)) {
+                // Загружаем основные данные бойца
+                if ($model->load($postData)) {
+                    // Убеждаемся, что обязательные поля установлены
+                    $model->user_id = Yii::$app->user->id;
 
-            // Устанавливаем статус по умолчанию, если не установлен
-            if (empty($model->status_id)) {
-                $model->status_id = FighterStatus::find()->where(['name' => 'Черновик'])->one()->id ?? 4;
+                    // Устанавливаем статус по умолчанию, если не установлен
+                    if (empty($model->status_id)) {
+                        $model->status_id = FighterStatus::find()->where(['name' => 'Черновик'])->one()->id ?? 4;
+                    }
+                    
+                    Yii::info('Before save - returnStatus: ' . $model->returnStatus . ', status_id: ' . $model->status_id, 'fighter');
+                    
+                    // Валидация перед сохранением
+                    if (!$model->validate()) {
+                        Yii::$app->session->setFlash('error', 'Ошибка валидации: ' . $this->getErrorsString($model->errors));
+                    } elseif ($model->save()) {
+                        Yii::$app->session->setFlash('success', 'Боец успешно создан.');
+                        return $this->redirect(['view', 'id' => $model->id]);
+                    } else {
+                        Yii::$app->session->setFlash('error', 'Ошибка при сохранении бойца: ' . $this->getErrorsString($model->errors));
+                    }
+                } else {
+                    Yii::$app->session->setFlash('error', 'Ошибка при загрузке данных формы.');
+                }
             }
-            
-            Yii::info('Before save - returnStatus: ' . $model->returnStatus . ', status_id: ' . $model->status_id, 'fighter');
-            
-            // Валидация перед сохранением
-            if (!$model->validate()) {
-                Yii::$app->session->setFlash('error', 'Ошибка валидации: ' . $this->getErrorsString($model->errors));
-            } elseif ($model->save()) {
-                Yii::$app->session->setFlash('success', 'Боец успешно создан.');
-                return $this->redirect(['view', 'id' => $model->id]);
-            } else {
-                Yii::$app->session->setFlash('error', 'Ошибка при сохранении бойца: ' . $this->getErrorsString($model->errors));
-            }
-        } else {
-            Yii::$app->session->setFlash('error', 'Ошибка при загрузке данных формы.');
+
         }
+        return $this->render('create', [
+            'model' => $model,
+            'captures' => $captures,
+            'awards' => $awards,
+            'capturesCount' => count($captures),
+            'awardsCount' => count($awards),
+        ]);
+    
     }
-
-    return $this->render('create', [
-        'model' => $model,
-        'captures' => $captures,
-        'awards' => $awards,
-        'capturesCount' => count($captures),
-        'awardsCount' => count($awards),
-    ]);
-}
+    
     public function actionUpdate($id)
     {
         $model = $this->findModel($id);
@@ -310,5 +315,26 @@ public function actionCreate()
         }
         return implode('; ', $messages);
     }
-    
+
+    private function debugLoadIssue($model, $postData)
+    {
+        Yii::info('=== DEBUG LOAD ISSUE ===', 'fighter');
+        Yii::info('POST keys: ' . print_r(array_keys($postData), true), 'fighter');
+        Yii::info('Model formName: ' . $model->formName(), 'fighter');
+        
+        if (isset($postData[$model->formName()])) {
+            Yii::info('Data for model: ' . print_r($postData[$model->formName()], true), 'fighter');
+        } else {
+            Yii::info('No data found for model: ' . $model->formName(), 'fighter');
+        }
+        
+        // Проверяем обязательные поля
+        $requiredFields = [];
+        foreach ($model->rules() as $rule) {
+            if (isset($rule[1]) && $rule[1] === 'required') {
+                $requiredFields = array_merge($requiredFields, (array)$rule[0]);
+            }
+        }
+        Yii::info('Required fields: ' . print_r($requiredFields, true), 'fighter');
+    }   
 }

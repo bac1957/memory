@@ -38,24 +38,41 @@ $this->registerJs(<<<JS
 console.log('Form loaded');
 
 $('#fighter-form').on('submit', function(e) {
-    console.log('Form submitted');
-    console.log('Form data:', $(this).serialize());
+    console.log('=== FORM SUBMISSION DEBUG ===');
     
-    // Проверьте, не блокируется ли отправка
-    var isValid = true;
-    $('.required-field').each(function() {
-        if (!$(this).val()) {
-            console.log('Empty field:', $(this).attr('name'));
+    // Проверяем наличие обязательных полей
+    const requiredFields = [
+        'Fighter[last_name]',
+        'Fighter[first_name]', 
+        'Fighter[returnStatus]'
+    ];
+    
+    let isValid = true;
+    requiredFields.forEach(function(fieldName) {
+        const field = document.querySelector('[name="' + fieldName + '"]');
+        if (field && !field.value) {
+            console.log('Empty required field:', fieldName);
             isValid = false;
         }
     });
     
+    // Проверяем radio buttons для returnStatus
+    const returnStatus = document.querySelector('input[name="Fighter[returnStatus]"]:checked');
+    if (!returnStatus) {
+        console.log('returnStatus not selected');
+        isValid = false;
+    } else {
+        console.log('returnStatus selected:', returnStatus.value);
+    }
+    
+    console.log('Form validation result:', isValid);
+    console.log('Form data:', $(this).serialize());
+    
     if (!isValid) {
         e.preventDefault();
-        console.log('Form validation failed');
+        alert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя, Судьба бойца)');
     }
 });
-
     // Функция для генерации options наград
     function generateAwardOptions() {
         let options = '<option value="">Выберите награду</option>';

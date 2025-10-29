@@ -12,6 +12,7 @@ use yii\web\NotFoundHttpException;
 use app\models\Fighter;
 use app\models\FighterSearch;
 use app\models\FighterPhoto;
+use app\models\FighterStatus;
 use app\models\LoginForm;
 use app\models\SignupForm;
 use app\models\ContactForm;
@@ -114,19 +115,23 @@ class SiteController extends Controller
     private function getBaseDataProvider()
     {
         return new ActiveDataProvider([
-            'query' => Fighter::find()
-                ->joinWith(['status', 'photos'])
-                ->andWhere(['fighter_photo.status' => FighterPhoto::STATUS_APPROVED])
-                ->groupBy('fighter.id')
-                ->orderBy(['fighter.created_at' => SORT_DESC]),
-            'pagination' => [
-                'pageSize' => 12,
-            ],
-        ]);
+        'query' => Fighter::find()
+            ->where(['status_id' => FighterStatus::STATUS_PUBLISHED])
+            ->with([
+                'status',
+                'militaryRank', 
+                'photos',
+                'mainPhoto'
+            ])
+            ->orderBy(['created_at' => SORT_DESC]),
+        'pagination' => [
+            'pageSize' => 12,
+        ],
+    ]);
     }
 
     /**
-     * Получить статистику
+     * Получить статистику по судьбе бойцов
      */
     private function getStats()
     {
@@ -135,11 +140,18 @@ class SiteController extends Controller
         
         if ($stats === false) {
             $stats = [
-                'total' => Fighter::find()->count(),
-                'returned' => Fighter::find()->where(['status_id' => 1])->count(),
-                'killed' => Fighter::find()->where(['status_id' => 2])->count(),
-                'missing' => Fighter::find()->where(['status_id' => 3])->count(),
+                'total' => Fighter::find()->where(['status_id' => FighterStatus::STATUS_PUBLISHED])->count(),
+                'returned' => Fighter::find()
+                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => Fighter::RETURN_STATUS_RETURNED])
+                    ->count(),
+                'killed' => Fighter::find()
+                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => Fighter::RETURN_STATUS_DIED])
+                    ->count(),
+                'missing' => Fighter::find()
+                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => Fighter::RETURN_STATUS_MISSING])
+                    ->count(),
                 'with_photos' => Fighter::find()
+                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED])
                     ->joinWith('photos')
                     ->andWhere(['fighter_photo.status' => FighterPhoto::STATUS_APPROVED])
                     ->count('DISTINCT fighter.id'),

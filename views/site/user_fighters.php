@@ -57,10 +57,10 @@ $this->params['breadcrumbs'][] = $this->title;
                 },
             ],
             [
-                'attribute' => 'military_rank',
+                'attribute' => 'militaryRank',
                 'label' => 'Звание',
                 'value' => function($model) {
-                    return $model->military_rank ?: '';
+                    return Html::encode($model->militaryRank->name) ?: '';
                 },
             ],
             [

@@ -12,7 +12,10 @@ class FighterSearch extends Model
     {
         return [
             [['q'], 'string', 'max' => 255],
-            ['q', 'filter', 'filter' => 'trim'],
+[['q'], 'filter', 'filter' => function($value) {
+                // Исправление для PHP 8.1+ - проверяем на null перед trim
+                return $value === null ? '' : trim($value);
+            }],
         ];
     }
 
@@ -26,8 +29,8 @@ class FighterSearch extends Model
     public function search($params)
     {
         $query = Fighter::find()
-            ->joinWith(['status', 'photos'])
-            ->andWhere(['fighter_photo.status' => FighterPhoto::STATUS_APPROVED])
+            ->where(['fighter.status_id' => FighterStatus::STATUS_PUBLISHED]) // Только опубликованные
+            ->joinWith(['status', 'photos']) // Оставляем join с фото, но без проверки статуса
             ->groupBy('fighter.id');
 
         $dataProvider = new ActiveDataProvider([
@@ -108,13 +111,13 @@ class FighterSearch extends Model
         // Проверяем на диапазон годов (1918-1925)
         if (preg_match('/^\d{4}-\d{4}$/', $term)) {
             list($start, $end) = explode('-', $term);
-            return $start >= 1900 && $start <= 1945 && $end >= 1900 && $end <= 1945 && $start <= $end;
+            return $start >= 1870 && $start <= 1930 && $end >= 1870 && $end <= 1930 && $start <= $end;
         }
         
         // Проверяем на одиночный год (1918)
         if (preg_match('/^\d{4}$/', $term)) {
             $year = (int)$term;
-            return $year >= 1900 && $year <= 1945;
+            return $year >= 1870 && $year <= 1930;
         }
         
         return false;

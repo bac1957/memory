@@ -1,5 +1,25 @@
 /* gallery.css */
 /* Стили для фотографий */
+.fighter-thumbnail {
+    display: block;
+    margin: 0 auto;
+}
+
+.fighter-photo {
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+}
+
+.no-photo-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 200px;
+}
+
 .main-photo-img {
     max-height: 400px;
     width: auto;

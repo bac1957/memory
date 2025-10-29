@@ -1,76 +1,65 @@
 <?php
 use yii\helpers\Html;
 use yii\helpers\Url;
-use app\helpers\PhotoHelper;
 
-/** @var $model \app\models\Fighter */
+/**
+ * @var app\models\Fighter $model
+ */
 ?>
 
 <div class="fighter-card">
-    <div class="fighter-card-inner">
-        <!-- Фотография -->
-        <div class="fighter-photo">
-            <?php if ($model->mainPhoto): ?>
-                <a href="<?= Url::to(['fighter/view', 'id' => $model->id]) ?>">
-                    <?= PhotoHelper::img($model->mainPhoto->id, [
-                        'class' => 'fighter-thumb',
-                        'alt' => $model->getFullName(),
-                    ]) ?>
-                </a>
+    <div class="card h-100">
+        <!-- Фото бойца -->
+        <div class="fighter-photo" style="height: 200px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f8f9fa;">
+            <?php if ($model->mainPhoto && $model->mainPhoto->thumbnail_data): ?>
+                <?= Html::img('data:' . $model->mainPhoto->mime_type . ';base64,' . base64_encode($model->mainPhoto->thumbnail_data), [
+                    'class' => 'card-img-top fighter-thumbnail',
+                    'alt' => $model->fullName,
+                    'style' => 'max-width: 100%; max-height: 100%; width: auto; height: auto;' // Без масштабирования, только ограничение по размеру контейнера
+                ]) ?>
             <?php else: ?>
-                <div class="no-photo-placeholder">
-                    <i class="glyphicon glyphicon-user"></i>
-                    <span>Фото отсутствует</span>
+                <div class="text-center">
+                    <i class="bi bi-person" style="font-size: 64px; color: #ccc;"></i>
+                    <p class="text-muted mt-2">Фото отсутствует</p>
                 </div>
             <?php endif; ?>
+        </div>
+        
+        <div class="card-body">
+            <!-- ФИО -->
+            <h5 class="card-title">
+                <?= Html::encode($model->fullName) ?>
+            </h5>
             
-            <!-- Статус -->
-            <div class="fighter-status-badge" style="background-color: <?= $model->status->color ?>">
-                <?= $model->status->name ?>
+            <!-- Основная информация -->
+            <div class="fighter-info">
+                <?php if ($model->birthDate): ?>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            <?= Html::encode($model->birthDate) ?>
+                        </small>
+                    </p>
+                <?php endif; ?>
+                
+                <?php if ($model->militaryRank): ?>
+                    <p class="card-text">
+                        <?= Html::encode($model->militaryRank->name) ?>
+                    </p>
+                <?php endif; ?>
+                
+                <!-- Судьба бойца -->
+                <div class="return-status-badge">
+                    <span class="badge <?= $model->returnStatusCssClass ?>">
+                        <?= $model->returnStatusIcon ?> <?= $model->returnStatusText ?>
+                    </span>
+                </div>
             </div>
         </div>
-
-        <!-- Информация -->
-        <div class="fighter-info">
-            <h4 class="fighter-name">
-                <?= Html::a(
-                    $model->getFullName(), 
-                    ['fighter/view', 'id' => $model->id],
-                    ['class' => 'fighter-link']
-                ) ?>
-            </h4>
-            
-            <div class="fighter-details">
-                <?php if ($model->military_rank): ?>
-                    <div class="fighter-rank">
-                        <i class="glyphicon glyphicon-star"></i>
-                        <?= Html::encode($model->military_rank) ?>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if ($model->birth_year): ?>
-                    <div class="fighter-years">
-                        <i class="glyphicon glyphicon-calendar"></i>
-                        <?= $model->getYearsOfLife() ?>
-                    </div>
-                <?php endif; ?>
-                
-                <?php if ($model->military_unit): ?>
-                    <div class="fighter-unit" title="<?= Html::encode($model->military_unit) ?>">
-                        <i class="glyphicon glyphicon-map-marker"></i>
-                        <?= Html::encode(mb_strimwidth($model->military_unit, 0, 50, '...')) ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-            
-            <?php if ($model->awards): ?>
-                <div class="fighter-awards">
-                    <small class="text-muted">
-                        <i class="glyphicon glyphicon-medkit"></i>
-                        Награды: <?= Html::encode(mb_strimwidth($model->awards, 0, 60, '...')) ?>
-                    </small>
-                </div>
-            <?php endif; ?>
+        
+        <div class="card-footer">
+            <?= Html::a('Подробнее', ['fighter/view', 'id' => $model->id], [
+                'class' => 'btn btn-primary btn-sm'
+            ]) ?>
         </div>
     </div>
 </div>
