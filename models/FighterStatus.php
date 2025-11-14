@@ -11,6 +11,7 @@ class FighterStatus extends ActiveRecord
     const STATUS_PUBLISHED = 3;    // Опубликован
     const STATUS_REJECTED = 4;     // Отклонен
     const STATUS_ARCHIVE = 5;      // Архив
+    const STATUS_BLOCKED = 6;      // Заблокирован
 
     public static function tableName()
     {
@@ -58,6 +59,7 @@ class FighterStatus extends ActiveRecord
             self::STATUS_PUBLISHED => 'Опубликован',
             self::STATUS_REJECTED => 'Отклонен',
             self::STATUS_ARCHIVE => 'Архив',
+            self::STATUS_BLOCKED => 'Заблокирован',
         ];
     }
 

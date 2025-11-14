@@ -71,8 +71,7 @@ $this->registerCssFile('@web/css/returnStatus.css', [
                                        id="returnStatus_<?= $value ?>" 
                                        name="Fighter[returnStatus]" 
                                        value="<?= $value ?>" 
-                                       <?= $isChecked ?>
-                                       required>
+                                       <?= $isChecked ?>>
                                 <label class="<?= $btnClass ?>" for="returnStatus_<?= $value ?>">
                                     <?= $label ?>
                                 </label>

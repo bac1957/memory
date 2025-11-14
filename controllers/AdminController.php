@@ -45,7 +45,7 @@ class AdminController extends Controller
         
         // Для модератора - страница модерации
         if (Yii::$app->user->identity->isModerator()) {
-            return $this->redirect(['moderation/index']);
+            return $this->redirect(['moderation/verify']);
         }
         
         return $this->goHome();

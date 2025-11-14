@@ -125,6 +125,7 @@ CREATE TABLE `fighter` (
     `updated_at` TIMESTAMP COMMENT 'Дата и время обновления записи',
     `moderated_at` TIMESTAMP COMMENT 'Дата и время модерирования',
     `moderator_id` INT COMMENT 'id записи пользователя модератора',
+    `moderation_comment` TEXT COMMENT 'Комментарий модератора',
     
     FOREIGN KEY (`status_id`) REFERENCES `fighter_status`(`id`),
     FOREIGN KEY (`user_id`) REFERENCES `user`(`id`),

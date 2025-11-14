@@ -2,6 +2,7 @@
 use yii\helpers\Html;
 use yii\grid\GridView;
 use yii\helpers\Url;
+use app\models\FighterStatus;
 
 $this->title = 'Мои бойцы';
 $this->params['breadcrumbs'][] = $this->title;
@@ -86,6 +87,18 @@ $this->params['breadcrumbs'][] = $this->title;
                 'value' => function($model) {
                     return $model->status ? $model->status->name : '';
                 },
+            ],
+            [
+                'label' => 'Комментарий модератора',
+                'format' => 'ntext',
+                'value' => function($model) {
+                    $needsComment = in_array($model->status_id, [
+                        FighterStatus::STATUS_REJECTED,
+                        FighterStatus::STATUS_BLOCKED
+                    ]);
+                    return $needsComment ? ($model->moderation_comment ?: 'Нет комментария') : '';
+                },
+                'contentOptions' => ['style' => 'max-width: 300px; white-space: normal;'],
             ],
             [
                 'class' => 'yii\grid\ActionColumn',

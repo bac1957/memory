@@ -36,7 +36,7 @@ class Fighter extends \yii\db\ActiveRecord
             [['user_id', 'status_id', 'military_rank_id', 'birth_year', 'birth_month', 'birth_day', 'death_year'], 'integer'],
             
             // Текстовые поля
-            [['biography', 'additional_info'], 'string'],
+            [['biography', 'additional_info', 'moderation_comment'], 'string'],
             
             // Дата-время поля
             [['created_at', 'updated_at', 'moderated_at'], 'safe'],
@@ -88,6 +88,7 @@ class Fighter extends \yii\db\ActiveRecord
             'updated_at' => 'Дата обновления',
             'moderated_at' => 'Дата модерации',
             'moderator_id' => 'Модератор',
+            'moderation_comment' => 'Комментарий модератора',
         ];
     }
 

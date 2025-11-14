@@ -26,7 +26,9 @@ $this->registerCssFile('@web/css/card.css', [
 ]);
 
 // Проверяем права доступа
-$canEdit = $model->canEdit(Yii::$app->user->identity);
+$identity = Yii::$app->user->identity;
+$canEdit = $identity ? $model->canEdit($identity) : false;
+$canSeeModeratorComment = $identity && ($canEdit || $identity->isModerator());
 ?>
 <div class="fighter-view">
 
@@ -186,6 +188,12 @@ $canEdit = $model->canEdit(Yii::$app->user->identity);
                                 'attribute' => 'updated_at',
                                 'label' => 'Дата обновления',
                                 'format' => 'datetime'
+                            ],
+                            [
+                                'attribute' => 'moderation_comment',
+                                'label' => 'Комментарий модератора',
+                                'format' => 'ntext',
+                                'visible' => $canSeeModeratorComment && !empty($model->moderation_comment),
                             ],
                         ],
                     ]) ?>
