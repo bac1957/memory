@@ -328,7 +328,11 @@ class SiteController extends Controller
     {
         $query = Fighter::find()
             ->where(['user_id' => Yii::$app->user->id])
-            ->joinWith(['mainPhoto', 'status'])
+            ->with([ // Используем with вместо joinWith для жадной загрузки
+                'status',
+                'militaryRank',
+                'mainPhoto'
+            ])
             ->orderBy(['fighter.created_at' => SORT_DESC]);
 
         $dataProvider = new ActiveDataProvider([

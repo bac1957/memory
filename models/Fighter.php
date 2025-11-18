@@ -364,7 +364,7 @@ class Fighter extends \yii\db\ActiveRecord
     public function getAwardsWithInfo()
     {
         return $this->getAwards()
-            ->joinWith('militaryAward')
+            ->joinWith('award')
             ->orderBy(['award_date' => SORT_ASC])
             ->all();
     }

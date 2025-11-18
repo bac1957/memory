@@ -71,6 +71,8 @@ $('#fighter-form').on('submit', function(e) {
     if (!isValid) {
         e.preventDefault();
         alert('Пожалуйста, заполните все обязательные поля (Фамилия, Имя, Судьба бойца)');
+    } else {
+        this.submit();
     }
 });
     // Функция для генерации options наград

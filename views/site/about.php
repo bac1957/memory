@@ -7,7 +7,7 @@
 *                     О программе ....
 * 
 * @file views/site/about.php
-* @version 0.0.1
+* @version 0.0.2
 *
 * @author Александр Васильков
 * @author Home Lab, Пенза (с), 2025
@@ -15,6 +15,9 @@
 * @var yii\web\View $this
 * 
 * @date 06.09.2025
+*
+* @p Изменения
+* @date 17.11.2025 Добавлены авторы
 *
 **********************************************************************
 */
@@ -46,8 +49,9 @@ include("include/getServerId.inc");
           <p align='left'>
           <table> 
             <tr>
-              <td>Автор:</td>
-              <td>А.Васильков</td>
+              <td>Авторы:</td>
+              <td>А.Васильков<br>С.Данилин<br>Д.Ракчеев
+			</td>
             </tr>
             <tr>
               <td>E-Mail:</td>
