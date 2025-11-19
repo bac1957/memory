@@ -74,6 +74,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             'dataProvider' => $dataProvider,
                             'layout' => "{items}\n{pager}",
                             'itemView' => '_fighter_card',
+                            'viewParams' => ['totalCount' => $dataProvider->getTotalCount()],
                             'options' => ['class' => 'fighters-grid'],
                             'itemOptions' => ['class' => 'fighter-card-item'],
                             'emptyText' => '',
@@ -120,6 +121,7 @@ $this->params['breadcrumbs'][] = $this->title;
                             'dataProvider' => $dataProvider,
                             'layout' => "{items}\n{pager}",
                             'itemView' => '_fighter_card',
+                            'viewParams' => ['totalCount' => $dataProvider->getTotalCount()],
                             'options' => ['class' => 'fighters-grid'],
                             'itemOptions' => ['class' => 'fighter-card-item'],
                             'pager' => [

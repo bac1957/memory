@@ -42,9 +42,9 @@ $this->params['breadcrumbs'][] = $this->title;
                 },
                 'contentOptions' => function($model) {
                     $class = '';
-                    if ($model->status_id == 2) { // Погиб
+                    if ($model->status_id == FighterStatus::STATUS_REJECTED) {
                         $class = 'text-danger';
-                    } elseif ($model->status_id == 3) { // Пропал без вести
+                    } elseif ($model->status_id == FighterStatus::STATUS_BLOCKED) {
                         $class = 'text-warning';
                     }
                     return ['class' => $class];
@@ -61,14 +61,14 @@ $this->params['breadcrumbs'][] = $this->title;
                 'attribute' => 'militaryRank',
                 'label' => 'Звание',
                 'value' => function($model) {
-                    return Html::encode($model->militaryRank->name) ?: '';
+                    return $model->militaryRank ? Html::encode($model->militaryRank->name) : '';
                 },
             ],
             [
-                'attribute' => 'birth_place',
+                'attribute' => 'conscription_place',
                 'label' => 'Место призыва',
                 'value' => function($model) {
-                    return $model->birth_place ?: '';
+                    return $model->conscription_place ?: '';
                 },
             ],
             [
@@ -85,7 +85,44 @@ $this->params['breadcrumbs'][] = $this->title;
                 'attribute' => 'status_id',
                 'label' => 'Статус',
                 'value' => function($model) {
-                    return $model->status ? $model->status->name : '';
+                    // Проверяем существование связанной модели статуса
+                    if (!$model->status) {
+                        return Html::tag('span', 'Не указан', ['class' => 'badge bg-secondary']);
+                    }
+                    
+                    $badgeClass = 'bg-secondary';
+                    $statusName = $model->status->name;
+                    
+                    // Цвета для разных статусов
+                    if ($model->status_id == FighterStatus::STATUS_DRAFT) {
+                        $badgeClass = 'bg-secondary';
+                    } elseif ($model->status_id == FighterStatus::STATUS_MODERATION) {
+                        $badgeClass = 'bg-warning';
+                    } elseif ($model->status_id == FighterStatus::STATUS_PUBLISHED) {
+                        $badgeClass = 'bg-success';
+                    } elseif ($model->status_id == FighterStatus::STATUS_REJECTED) {
+                        $badgeClass = 'bg-danger';
+                    } elseif ($model->status_id == FighterStatus::STATUS_ARCHIVE) {
+                        $badgeClass = 'bg-info';
+                    } elseif ($model->status_id == FighterStatus::STATUS_BLOCKED) {
+                        $badgeClass = 'bg-dark';
+                    }
+                    
+                    return Html::tag('span', Html::encode($statusName), [
+                        'class' => "badge {$badgeClass}"
+                    ]);
+                },
+                'format' => 'raw',
+                'contentOptions' => function($model) {
+                    $class = '';
+                    if ($model->status_id == FighterStatus::STATUS_REJECTED) {
+                        $class = 'table-danger';
+                    } elseif ($model->status_id == FighterStatus::STATUS_MODERATION) {
+                        $class = 'table-warning';
+                    } elseif ($model->status_id == FighterStatus::STATUS_BLOCKED) {
+                        $class = 'table-dark';
+                    }
+                    return ['class' => $class];
                 },
             ],
             [

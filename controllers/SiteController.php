@@ -114,26 +114,45 @@ class SiteController extends Controller
      */
     private function getBaseDataProvider()
     {
+        // Для авторизованных пользователей показываем всех их бойцов, кроме заблокированных
+        if (!Yii::$app->user->isGuest) {
+            return new ActiveDataProvider([
+                'query' => Fighter::find()
+                    ->where(['user_id' => Yii::$app->user->id])
+                    ->andWhere(['!=', 'status_id', FighterStatus::STATUS_BLOCKED]) // Исключаем заблокированных
+                    ->with([
+                        'status',
+                        'militaryRank', 
+                        'photos',
+                        'mainPhoto'
+                    ])
+                    ->orderBy(['created_at' => SORT_DESC]),
+                'pagination' => [
+                    'pageSize' => 12,
+                ],
+            ]);
+        }
+        
+        // Для гостей показываем только опубликованных бойцов
         return new ActiveDataProvider([
-        'query' => Fighter::find()
-            ->where(['status_id' => FighterStatus::STATUS_PUBLISHED])
-            ->with([
-                'status',
-                'militaryRank', 
-                'photos',
-                'mainPhoto'
-            ])
-            ->orderBy(['created_at' => SORT_DESC]),
-        'pagination' => [
-            'pageSize' => 12,
-        ],
-    ]);
+            'query' => Fighter::find()
+                ->where(['status_id' => FighterStatus::STATUS_PUBLISHED])
+                ->with([
+                    'status',
+                    'militaryRank', 
+                    'photos',
+                    'mainPhoto'
+                ])
+                ->orderBy(['created_at' => SORT_DESC]),
+            'pagination' => [
+                'pageSize' => 12,
+            ],
+        ]);
     }
-
     /**
      * Получить статистику по судьбе бойцов
      */
-    private function getStats()
+     private function getStats()
     {
         $cacheKey = 'fighter_stats_' . date('Y-m-d');
         $stats = Yii::$app->cache->get($cacheKey);
@@ -142,18 +161,18 @@ class SiteController extends Controller
             $stats = [
                 'total' => Fighter::find()->where(['status_id' => FighterStatus::STATUS_PUBLISHED])->count(),
                 'returned' => Fighter::find()
-                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => Fighter::RETURN_STATUS_RETURNED])
+                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => 'returned'])
                     ->count(),
                 'killed' => Fighter::find()
-                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => Fighter::RETURN_STATUS_DIED])
+                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => 'died'])
                     ->count(),
                 'missing' => Fighter::find()
-                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => Fighter::RETURN_STATUS_MISSING])
+                    ->where(['status_id' => FighterStatus::STATUS_PUBLISHED, 'returnStatus' => 'missing'])
                     ->count(),
                 'with_photos' => Fighter::find()
                     ->where(['status_id' => FighterStatus::STATUS_PUBLISHED])
                     ->joinWith('photos')
-                    ->andWhere(['fighter_photo.status' => FighterPhoto::STATUS_APPROVED])
+                    ->andWhere(['fighter_photo.status' => 'approved'])
                     ->count('DISTINCT fighter.id'),
             ];
             
@@ -163,7 +182,6 @@ class SiteController extends Controller
         
         return $stats;
     }
-
     /**
      * Авторизация пользователя
      *

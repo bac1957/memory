@@ -1,230 +1,125 @@
 <?php
 use yii\helpers\Html;
-use yii\grid\GridView;
 use yii\helpers\Url;
 use app\models\FighterStatus;
 
-$this->title = 'Мои бойцы';
-$this->params['breadcrumbs'][] = $this->title;
+/** 
+ * @var app\models\Fighter $model
+ * @var yii\web\View $this 
+ */
 ?>
 
-<div class="site-user-fighters">
-    <h1><?= Html::encode($this->title) ?></h1>
+<div class="fighter-card">
+    <div class="card h-100">
+        <!-- Бейдж статуса -->
+        <div class="card-header status-badge">
+            <?php
+            $statusConfig = [
+                FighterStatus::STATUS_DRAFT => ['class' => 'bg-secondary', 'label' => 'Черновик'],
+                FighterStatus::STATUS_MODERATION => ['class' => 'bg-warning', 'label' => 'На модерации'],
+                FighterStatus::STATUS_PUBLISHED => ['class' => 'bg-success', 'label' => 'Опубликован'],
+                FighterStatus::STATUS_REJECTED => ['class' => 'bg-danger', 'label' => 'Отклонен'],
+                FighterStatus::STATUS_ARCHIVE => ['class' => 'bg-info', 'label' => 'Архив'],
+                FighterStatus::STATUS_BLOCKED => ['class' => 'bg-dark', 'label' => 'Заблокирован'],
+            ];
+            
+            $status = $statusConfig[$model->status_id] ?? ['class' => 'bg-secondary', 'label' => 'Неизвестно'];
+            ?>
+            <span class="badge <?= $status['class'] ?>"><?= $status['label'] ?></span>
+            
+            <?php if ($model->moderation_comment && in_array($model->status_id, [FighterStatus::STATUS_REJECTED, FighterStatus::STATUS_BLOCKED])): ?>
+                <small class="text-muted d-block mt-1" title="<?= Html::encode($model->moderation_comment) ?>">
+                    <i class="bi bi-chat-left-text"></i> 
+                    <?= mb_strimwidth(Html::encode($model->moderation_comment), 0, 50, '...') ?>
+                </small>
+            <?php endif; ?>
+        </div>
 
-    <div class="alert alert-info mb-3">
-        <i class="bi bi-info-circle"></i> Всего бойцов: <strong><?= $totalCount ?></strong>
-    </div>
+        <!-- Фото бойца -->
+        <div class="fighter-photo-container">
+            <?php if ($model->mainPhoto && $model->mainPhoto->thumbnail_data): ?>
+                <?php
+                $base64 = base64_encode($model->mainPhoto->thumbnail_data);
+                $src = 'data:' . $model->mainPhoto->mime_type . ';base64,' . $base64;
+                ?>
+                <img src="<?= $src ?>" class="fighter-photo" alt="Фото бойца">
+            <?php else: ?>
+                <div class="fighter-no-photo">
+                    <i class="bi bi-person" style="font-size: 48px; color: #ccc;"></i>
+                    <span class="text-muted small">Нет фото</span>
+                </div>
+            <?php endif; ?>
+        </div>
 
-    <?= GridView::widget([
-        'dataProvider' => $dataProvider,
-        'layout' => "{items}\n{pager}",
-        'tableOptions' => ['class' => 'table table-striped table-bordered'],
-        'columns' => [
-            [
-                'attribute' => 'id',
-                'header' => 'ID',
-                'contentOptions' => ['style' => 'width: 60px; text-align: center;'],
-            ],
-            [
-                'attribute' => 'photo',
-                'label' => 'Фото',
-                'format' => 'raw',
-                'value' => function($model) {
-                    if ($model->mainPhoto && $model->mainPhoto->thumbnail_data) {
-                        $base64 = base64_encode($model->mainPhoto->thumbnail_data);
-                        $src = 'data:' . $model->mainPhoto->mime_type . ';base64,' . $base64;
-                        return Html::img($src, [
-                            'style' => 'width: 60px; height: 60px; object-fit: cover; border-radius: 4px;',
-                            'alt' => 'Фото бойца',
-                            'class' => 'img-thumbnail'
-                        ]);
-                    }
-                    return Html::tag('div', 'Нет фото', [
-                        'style' => 'width: 60px; height: 60px; background: #f8f9fa; display: flex; align-items: center; justify-content: center; border-radius: 4px; border: 1px solid #dee2e6;',
-                        'class' => 'text-muted small'
-                    ]);
-                },
-                'contentOptions' => ['style' => 'width: 80px; text-align: center; vertical-align: middle;'],
-            ],
-            [
-                'attribute' => 'last_name',
-                'label' => 'Фамилия',
-                'value' => function($model) {
-                    return Html::encode($model->last_name);
-                },
-            ],
-            [
-                'attribute' => 'first_name',
-                'label' => 'Имя',
-                'value' => function($model) {
-                    return Html::encode($model->first_name);
-                },
-            ],
-            [
-                'attribute' => 'middle_name',
-                'label' => 'Отчество',
-                'value' => function($model) {
-                    return Html::encode($model->middle_name ?: '');
-                },
-            ],
-            [
-                'label' => 'ФИО',
-                'value' => function($model) {
-                    return Html::encode(trim($model->last_name . ' ' . $model->first_name . ' ' . ($model->middle_name ?: '')));
-                },
-                'contentOptions' => ['style' => 'font-weight: 500;'],
-            ],
-            [
-                'attribute' => 'birth_year',
-                'label' => 'Год рождения',
-                'value' => function($model) {
-                    return $model->birth_year ? $model->birth_year : '<span class="text-muted">не указан</span>';
-                },
-                'format' => 'raw',
-            ],
-            [
-                'attribute' => 'militaryRank.name',
-                'label' => 'Звание',
-                'value' => function($model) {
-                    return $model->militaryRank ? Html::encode($model->militaryRank->name) : '<span class="text-muted">не указано</span>';
-                },
-                'format' => 'raw',
-            ],
-            [
-                'attribute' => 'conscription_place',
-                'label' => 'Место призыва',
-                'value' => function($model) {
-                    if (empty($model->conscription_place)) {
-                        return '<span class="text-muted">не указано</span>';
-                    }
-                    return Html::encode(mb_strlen($model->conscription_place) > 50 
-                        ? mb_substr($model->conscription_place, 0, 50) . '...' 
-                        : $model->conscription_place);
-                },
-                'format' => 'raw',
-            ],
-            [
-                'attribute' => 'status.name',
-                'label' => 'Статус',
-                'value' => function($model) {
-                    if (!$model->status) {
-                        return '<span class="badge bg-secondary">не указан</span>';
-                    }
-                    
-                    $badgeClass = 'bg-secondary';
-                    $statusName = $model->status->name;
-                    
-                    // Цвета для разных статусов
-                    if (stripos($statusName, 'чернов') !== false) {
-                        $badgeClass = 'bg-secondary';
-                    } elseif (stripos($statusName, 'опубли') !== false || stripos($statusName, 'актив') !== false) {
-                        $badgeClass = 'bg-success';
-                    } elseif (stripos($statusName, 'отклон') !== false || stripos($statusName, 'заблок') !== false) {
-                        $badgeClass = 'bg-danger';
-                    } elseif (stripos($statusName, 'ожидан') !== false || stripos($statusName, 'модерац') !== false) {
-                        $badgeClass = 'bg-warning';
-                    }
-                    
-                    return Html::tag('span', Html::encode($statusName), [
-                        'class' => "badge {$badgeClass}"
-                    ]);
-                },
-                'format' => 'raw',
-                'contentOptions' => function($model) {
-                    $class = '';
-                    if ($model->status) {
-                        $statusName = strtolower($model->status->name);
-                        if (strpos($statusName, 'отклон') !== false || strpos($statusName, 'заблок') !== false) {
-                            $class = 'table-danger';
-                        } elseif (strpos($statusName, 'ожидан') !== false || strpos($statusName, 'модерац') !== false) {
-                            $class = 'table-warning';
-                        }
-                    }
-                    return ['class' => $class];
-                },
-            ],
-            [
-                'attribute' => 'returnStatus',
-                'label' => 'Судьба',
-                'value' => function($model) {
-                    $statuses = [
-                        'returned' => ['text' => 'Вернулся', 'class' => 'success'],
-                        'died' => ['text' => 'Погиб', 'class' => 'danger'],
-                        'missing' => ['text' => 'Пропал без вести', 'class' => 'warning'],
-                    ];
-                    
-                    if (isset($statuses[$model->returnStatus])) {
-                        $status = $statuses[$model->returnStatus];
-                        return Html::tag('span', $status['text'], [
-                            'class' => "badge bg-{$status['class']}"
-                        ]);
-                    }
-                    
-                    return '<span class="badge bg-secondary">не указана</span>';
-                },
-                'format' => 'raw',
-            ],
-            [
-                'attribute' => 'created_at',
-                'label' => 'Добавлен',
-                'format' => 'datetime',
-                'contentOptions' => ['style' => 'width: 150px;'],
-            ],
-            [
-                'attribute' => 'moderation_comment',
-                'label' => 'Комментарий модератора',
-                'value' => function($model) {
-                    if (empty($model->moderation_comment)) {
-                        return '';
-                    }
-                    return Html::tag('small', Html::encode($model->moderation_comment), [
-                        'class' => 'text-muted',
-                        'title' => Html::encode($model->moderation_comment)
-                    ]);
-                },
-                'format' => 'raw',
-                'contentOptions' => ['style' => 'max-width: 200px;'],
-            ],
-            [
-                'class' => 'yii\grid\ActionColumn',
-                'template' => '{view} {update} {delete}',
-                'header' => 'Действия',
-                'contentOptions' => ['style' => 'width: 120px; text-align: center; white-space: nowrap;'],
-                'buttons' => [
-                    'view' => function($url, $model) {
-                        return Html::a('<i class="bi bi-eye"></i>', ['fighter/view', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-outline-primary',
-                            'title' => 'Просмотр',
-                        ]);
-                    },
-                    'update' => function($url, $model) {
-                        return Html::a('<i class="bi bi-pencil"></i>', ['fighter/update', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-outline-secondary',
-                            'title' => 'Редактировать',
-                        ]);
-                    },
-                    'delete' => function($url, $model) {
-                        return Html::a('<i class="bi bi-trash"></i>', ['fighter/delete', 'id' => $model->id], [
-                            'class' => 'btn btn-sm btn-outline-danger',
-                            'title' => 'Удалить',
-                            'data' => [
-                                'confirm' => 'Вы уверены, что хотите удалить этого бойца?',
-                                'method' => 'post',
-                            ],
-                        ]);
-                    },
-                ],
-            ],
-        ],
-    ]); ?>
+        <!-- Информация о бойце -->
+        <div class="card-body">
+            <h5 class="card-title fighter-name">
+                <?= Html::encode($model->last_name) ?>
+                <?= Html::encode($model->first_name) ?>
+                <?= Html::encode($model->middle_name ?: '') ?>
+            </h5>
 
-    <div class="mt-4">
-        <?= Html::a('<i class="bi bi-plus-circle"></i> Добавить нового бойца', ['fighter/create'], [
-            'class' => 'btn btn-success btn-lg'
-        ]) ?>
-        
-        <?= Html::a('<i class="bi bi-house"></i> На главную', ['site/index'], [
-            'class' => 'btn btn-outline-secondary ms-2'
-        ]) ?>
+            <div class="fighter-info">
+                <?php if ($model->birth_year): ?>
+                    <div class="fighter-info-item">
+                        <span class="label">Год рождения:</span>
+                        <span class="value"><?= Html::encode($model->birth_year) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($model->militaryRank): ?>
+                    <div class="fighter-info-item">
+                        <span class="label">Звание:</span>
+                        <span class="value"><?= Html::encode($model->militaryRank->name) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <?php if ($model->conscription_place): ?>
+                    <div class="fighter-info-item">
+                        <span class="label">Место призыва:</span>
+                        <span class="value"><?= Html::encode($model->conscription_place) ?></span>
+                    </div>
+                <?php endif; ?>
+
+                <!-- Показываем дату создания для непромодерированных записей -->
+                <?php if (!Yii::$app->user->isGuest && in_array($model->status_id, [FighterStatus::STATUS_DRAFT, FighterStatus::STATUS_MODERATION])): ?>
+                    <div class="fighter-info-item">
+                        <span class="label">Добавлен:</span>
+                        <span class="value"><?= Yii::$app->formatter->asDate($model->created_at, 'short') ?></span>
+                    </div>
+                <?php endif; ?>
+            </div>
+
+            <!-- Статус возвращения -->
+            <div class="fighter-status mt-2">
+                <?php
+                $returnStatusClasses = [
+                    'returned' => 'success',
+                    'died' => 'danger', 
+                    'missing' => 'warning',
+                ];
+                
+                if (isset($returnStatusClasses[$model->returnStatus])): ?>
+                    <span class="badge bg-<?= $returnStatusClasses[$model->returnStatus] ?>">
+                        <?= $model->getReturnStatusLabel() ?>
+                    </span>
+                <?php endif; ?>
+            </div>
+        </div>
+
+        <!-- Кнопка просмотра -->
+        <div class="card-footer">
+            <?= Html::a('Подробнее', ['fighter/view', 'id' => $model->id], [
+                'class' => 'btn btn-primary btn-sm btn-block'
+            ]) ?>
+            
+            <!-- Для непромодерированных записей показываем иконку редактирования -->
+            <?php if (!Yii::$app->user->isGuest && in_array($model->status_id, [FighterStatus::STATUS_DRAFT, FighterStatus::STATUS_MODERATION, FighterStatus::STATUS_REJECTED])): ?>
+                <?= Html::a('<i class="bi bi-pencil"></i>', ['fighter/update', 'id' => $model->id], [
+                    'class' => 'btn btn-outline-secondary btn-sm mt-1',
+                    'title' => 'Редактировать'
+                ]) ?>
+            <?php endif; ?>
+        </div>
     </div>
 </div>

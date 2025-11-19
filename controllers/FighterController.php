@@ -121,6 +121,11 @@ class FighterController extends Controller
             $awards = [];
             $awardData = Yii::$app->request->post('FighterAward', []);
             foreach ($awardData as $i => $awardItem) {
+                // Пропускаем пустые награды (где не выбран тип награды)
+                if (empty($awardItem['award_id'])) {
+                    continue;
+                }
+                
                 if (isset($awardItem['id']) && !empty($awardItem['id'])) {
                     $award = FighterAward::findOne($awardItem['id']);
                     if (!$award) {
@@ -129,12 +134,9 @@ class FighterController extends Controller
                 } else {
                     $award = new FighterAward();
                 }
-                // Правильная загрузка данных
-                foreach ($awardItem as $key => $value) {
-                    if (property_exists($award, $key)) {
-                        $award->$key = $value;
-                    }
-                }
+                
+                // Загружаем данные через load
+                $award->load(['FighterAward' => $awardItem]);
                 $awards[] = $award;
             }
 
@@ -194,14 +196,24 @@ class FighterController extends Controller
                     
                     // Сохраняем награды
                     foreach ($awards as $award) {
-                        if ($this->hasAwardData($award)) {
-                            $award->fighter_id = $model->id;
-                            if (!$award->save()) {
-                                Yii::error('Ошибка сохранения награды: ' . print_r($award->errors, true));
-                                throw new \Exception('Ошибка сохранения данных о награде: ' . print_r($award->errors, true));
-                            }
-                            $hasAwardData = true;
+                        // Проверяем, что выбрана награда (обязательное поле)
+                        if (empty($award->award_id)) {
+                            continue; // Пропускаем награды без выбранного типа
                         }
+                        
+                        $award->fighter_id = $model->id;
+                        
+                        // Валидация награды
+                        if (!$award->validate()) {
+                            Yii::error('Ошибка валидации награды: ' . print_r($award->errors, true));
+                            throw new \Exception('Ошибка валидации данных о награде: ' . $this->getErrorsString($award->errors));
+                        }
+                        
+                        if (!$award->save()) {
+                            Yii::error('Ошибка сохранения награды: ' . print_r($award->errors, true));
+                            throw new \Exception('Ошибка сохранения данных о награде: ' . print_r($award->errors, true));
+                        }
+                        $hasAwardData = true;
                     }
                     
                     $transaction->commit();
@@ -298,10 +310,7 @@ class FighterController extends Controller
      */
     private function hasAwardData($award)
     {
-        return !empty($award->award_id) || 
-               !empty(trim($award->award_date ?? '')) || 
-               !empty(trim($award->award_reason ?? '')) ||
-               !empty(trim($award->document_description ?? ''));
+        return !empty($award->award_id); // Главное условие - выбрана награда
     }
 
     /**
