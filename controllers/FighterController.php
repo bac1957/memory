@@ -22,7 +22,21 @@ class FighterController extends Controller
                 'rules' => [
                     [
                         'allow' => true,
-                        'roles' => ['@'], // Только авторизованные пользователи
+                        'roles' => ['@'],
+                        'matchCallback' => function ($rule, $action) {
+                            // Для действий update и delete проверяем статус
+                            if (in_array($action->id, ['update', 'delete'])) {
+                                $id = Yii::$app->request->get('id');
+                                if ($id) {
+                                    $model = Fighter::findOne($id);
+                                    if ($model && $model->status_id == FighterStatus::STATUS_MODERATION) {
+                                        Yii::$app->session->setFlash('error', 'Редактирование ограничено пока боец находится на модерации.');
+                                        return false;
+                                    }
+                                }
+                            }
+                            return true;
+                        }
                     ],
                 ],
             ],
@@ -30,6 +44,7 @@ class FighterController extends Controller
                 'class' => VerbFilter::class,
                 'actions' => [
                     'delete' => ['POST'],
+                    'send-to-moderation' => ['POST'],
                 ],
             ],
         ];
@@ -43,36 +58,44 @@ class FighterController extends Controller
 
         if (Yii::$app->request->isPost) {
             $postData = Yii::$app->request->post();
-            $this->debugLoadIssue($model, $postData);
-        
+            
             if ($model->load($postData)) {
-                // Загружаем основные данные бойца
-                if ($model->load($postData)) {
-                    // Убеждаемся, что обязательные поля установлены
-                    $model->user_id = Yii::$app->user->id;
+                // Убеждаемся, что обязательные поля установлены
+                $model->user_id = Yii::$app->user->id;
 
-                    // Устанавливаем статус по умолчанию, если не установлен
-                    if (empty($model->status_id)) {
-                        $model->status_id = FighterStatus::find()->where(['name' => 'Черновик'])->one()->id ?? 4;
-                    }
-                    
-                    Yii::info('Before save - returnStatus: ' . $model->returnStatus . ', status_id: ' . $model->status_id, 'fighter');
-                    
-                    // Валидация перед сохранением
-                    if (!$model->validate()) {
-                        Yii::$app->session->setFlash('error', 'Ошибка валидации: ' . $this->getErrorsString($model->errors));
-                    } elseif ($model->save()) {
-                        Yii::$app->session->setFlash('success', 'Боец успешно создан.');
-                        return $this->redirect(['view', 'id' => $model->id]);
-                    } else {
-                        Yii::$app->session->setFlash('error', 'Ошибка при сохранении бойца: ' . $this->getErrorsString($model->errors));
-                    }
-                } else {
-                    Yii::$app->session->setFlash('error', 'Ошибка при загрузке данных формы.');
+                // Устанавливаем статус по умолчанию, если не установлен
+                if (empty($model->status_id)) {
+                    $model->status_id = FighterStatus::find()->where(['name' => 'Черновик'])->one()->id ?? 1;
                 }
+                
+                $transaction = Yii::$app->db->beginTransaction();
+                try {
+                    // Сохраняем основную модель
+                    if (!$model->save()) {
+                        throw new \Exception('Ошибка сохранения бойца: ' . $this->getErrorsString($model->errors));
+                    }
+                    
+                    // Сохраняем награды
+                    $this->saveAwards($model->id, $postData);
+                    
+                    // Сохраняем пленения
+                    $this->saveCaptures($model->id, $postData);
+                    
+                    $transaction->commit();
+                    
+                    Yii::$app->session->setFlash('success', 'Боец успешно создан.');
+                    return $this->redirect(['view', 'id' => $model->id]);
+                    
+                } catch (\Exception $e) {
+                    $transaction->rollBack();
+                    Yii::error('Transaction failed: ' . $e->getMessage());
+                    Yii::$app->session->setFlash('error', 'Ошибка при сохранении: ' . $e->getMessage());
+                }
+            } else {
+                Yii::$app->session->setFlash('error', 'Ошибка при загрузке данных формы.');
             }
-
         }
+
         return $this->render('create', [
             'model' => $model,
             'captures' => $captures,
@@ -80,7 +103,6 @@ class FighterController extends Controller
             'capturesCount' => count($captures),
             'awardsCount' => count($awards),
         ]);
-    
     }
     
     public function actionUpdate($id)
@@ -96,140 +118,28 @@ class FighterController extends Controller
         $awards = $model->awards ?: [new FighterAward()];
 
         if ($model->load(Yii::$app->request->post())) {
-            // Загрузка данных о пленениях
-            $captures = [];
-            $captureData = Yii::$app->request->post('FighterCapture', []);
-            foreach ($captureData as $i => $captureItem) {
-                if (isset($captureItem['id']) && !empty($captureItem['id'])) {
-                    $capture = FighterCapture::findOne($captureItem['id']);
-                    if (!$capture) {
-                        $capture = new FighterCapture();
-                    }
-                } else {
-                    $capture = new FighterCapture();
-                }
-                // Правильная загрузка данных
-                foreach ($captureItem as $key => $value) {
-                    if (property_exists($capture, $key)) {
-                        $capture->$key = $value;
-                    }
-                }
-                $captures[] = $capture;
-            }
-
-            // Загрузка данных о наградах
-            $awards = [];
-            $awardData = Yii::$app->request->post('FighterAward', []);
-            foreach ($awardData as $i => $awardItem) {
-                // Пропускаем пустые награды (где не выбран тип награды)
-                if (empty($awardItem['award_id'])) {
-                    continue;
-                }
-                
-                if (isset($awardItem['id']) && !empty($awardItem['id'])) {
-                    $award = FighterAward::findOne($awardItem['id']);
-                    if (!$award) {
-                        $award = new FighterAward();
-                    }
-                } else {
-                    $award = new FighterAward();
-                }
-                
-                // Загружаем данные через load
-                $award->load(['FighterAward' => $awardItem]);
-                $awards[] = $award;
-            }
-
             $transaction = Yii::$app->db->beginTransaction();
             try {
-                // Проверяем валидацию перед сохранением
-                if (!$model->validate()) {
-                    Yii::error('Fighter validation errors: ' . print_r($model->errors, true));
-                    throw new \Exception('Ошибка валидации данных бойца: ' . $this->getErrorsString($model->errors));
+                // Сохраняем основную модель
+                if (!$model->save()) {
+                    throw new \Exception('Ошибка сохранения бойца: ' . $this->getErrorsString($model->errors));
                 }
                 
-                if ($model->save()) {
-                    Yii::info('Fighter updated with status: ' . $model->status_id . ', ReturnStatus: ' . $model->returnStatus, 'fighter');
-                    
-                    $hasCaptureData = false;
-                    $hasAwardData = false;
-                    
-                    // Удаляем только те записи, которые больше не существуют
-                    $existingCaptureIds = array_filter(array_map(function($c) { 
-                        return $c->id ?? null; 
-                    }, $captures));
-                    if (!empty($existingCaptureIds)) {
-                        FighterCapture::deleteAll([
-                            'and', 
-                            ['fighter_id' => $model->id],
-                            ['not in', 'id', $existingCaptureIds]
-                        ]);
-                    } else {
-                        FighterCapture::deleteAll(['fighter_id' => $model->id]);
-                    }
-                    
-                    // Сохраняем пленения
-                    foreach ($captures as $capture) {
-                        if ($this->hasCaptureData($capture)) {
-                            $capture->fighter_id = $model->id;
-                            if (!$capture->save()) {
-                                Yii::error('Ошибка сохранения пленения: ' . print_r($capture->errors, true));
-                                throw new \Exception('Ошибка сохранения данных о пленении: ' . print_r($capture->errors, true));
-                            }
-                            $hasCaptureData = true;
-                        }
-                    }
-                    
-                    // Удаляем только те записи, которые больше не существуют
-                    $existingAwardIds = array_filter(array_map(function($a) { 
-                        return $a->id ?? null; 
-                    }, $awards));
-                    if (!empty($existingAwardIds)) {
-                        FighterAward::deleteAll([
-                            'and', 
-                            ['fighter_id' => $model->id],
-                            ['not in', 'id', $existingAwardIds]
-                        ]);
-                    } else {
-                        FighterAward::deleteAll(['fighter_id' => $model->id]);
-                    }
-                    
-                    // Сохраняем награды
-                    foreach ($awards as $award) {
-                        // Проверяем, что выбрана награда (обязательное поле)
-                        if (empty($award->award_id)) {
-                            continue; // Пропускаем награды без выбранного типа
-                        }
-                        
-                        $award->fighter_id = $model->id;
-                        
-                        // Валидация награды
-                        if (!$award->validate()) {
-                            Yii::error('Ошибка валидации награды: ' . print_r($award->errors, true));
-                            throw new \Exception('Ошибка валидации данных о награде: ' . $this->getErrorsString($award->errors));
-                        }
-                        
-                        if (!$award->save()) {
-                            Yii::error('Ошибка сохранения награды: ' . print_r($award->errors, true));
-                            throw new \Exception('Ошибка сохранения данных о награде: ' . print_r($award->errors, true));
-                        }
-                        $hasAwardData = true;
-                    }
-                    
-                    $transaction->commit();
-                    
-                    Yii::info("User " . Yii::$app->user->id . " updated fighter ID: " . $model->id, 'fighter');
-                    
-                    $message = 'Данные бойца успешно обновлены (статус: Черновик).';
-                    if ($hasCaptureData) $message .= ' Данные о пленении обновлены.';
-                    if ($hasAwardData) $message .= ' Данные о наградах обновлены.';
-                    
-                    Yii::$app->session->setFlash('success', $message);
-                    return $this->redirect(['view', 'id' => $model->id]);
-                } else {
-                    Yii::error('Ошибка сохранения бойца: ' . print_r($model->errors, true));
-                    throw new \Exception('Ошибка сохранения бойца: ' . print_r($model->errors, true));
-                }
+                // Сохраняем награды
+                $hasAwardData = $this->saveAwards($model->id, Yii::$app->request->post());
+                
+                // Сохраняем пленения
+                $hasCaptureData = $this->saveCaptures($model->id, Yii::$app->request->post());
+                
+                $transaction->commit();
+                
+                $message = 'Данные бойца успешно обновлены.';
+                if ($hasAwardData) $message .= ' Данные о наградах обновлены.';
+                if ($hasCaptureData) $message .= ' Данные о пленении обновлены.';
+                
+                Yii::$app->session->setFlash('success', $message);
+                return $this->redirect(['view', 'id' => $model->id]);
+                
             } catch (\Exception $e) {
                 $transaction->rollBack();
                 Yii::error('Transaction failed: ' . $e->getMessage());
@@ -244,6 +154,134 @@ class FighterController extends Controller
             'awards' => $awards,
             'awardsCount' => count($awards),
         ]);
+    }
+
+    /**
+     * Отправка бойца на модерацию
+     */
+    public function actionSendToModeration($id)
+    {
+        $model = $this->findModel($id);
+        
+        // Проверяем права доступа
+        if ($model->user_id !== Yii::$app->user->id && !Yii::$app->user->identity->isAdmin()) {
+            throw new \yii\web\ForbiddenHttpException('У вас нет прав для отправки этого бойца на модерацию.');
+        }
+        
+        // Проверяем, можно ли отправить на модерацию
+        $allowedStatuses = [
+            FighterStatus::STATUS_DRAFT,
+            FighterStatus::STATUS_REJECTED
+        ];
+        
+        if (!in_array($model->status_id, $allowedStatuses)) {
+            Yii::$app->session->setFlash('error', 'Боец не может быть отправлен на модерацию из текущего статуса.');
+            return $this->redirect(['update', 'id' => $model->id]);
+        }
+        
+        // Получаем ID статуса "На модерации"
+        $moderationStatus = FighterStatus::find()->where(['name' => 'На модерации'])->one();
+        if (!$moderationStatus) {
+            Yii::$app->session->setFlash('error', 'Статус "На модерации" не найден в системе.');
+            return $this->redirect(['update', 'id' => $model->id]);
+        }
+        
+        $model->status_id = $moderationStatus->id;
+        
+        if ($model->save()) {
+            Yii::$app->session->setFlash('success', 'Боец успешно отправлен на проверку модератору. Ожидайте решения.');
+            return $this->redirect(['view', 'id' => $model->id]);
+        } else {
+            Yii::$app->session->setFlash('error', 'Ошибка при отправке на модерацию: ' . $this->getErrorsString($model->errors));
+            return $this->redirect(['update', 'id' => $model->id]);
+        }
+    }
+
+    /**
+     * Сохраняет награды для бойца
+     */
+    private function saveAwards($fighterId, $postData)
+    {
+        $hasAwardData = false;
+        $awardData = $postData['FighterAward'] ?? [];
+        
+        // Удаляем старые награды
+        FighterAward::deleteAll(['fighter_id' => $fighterId]);
+        
+        foreach ($awardData as $awardItem) {
+            // Пропускаем пустые награды (где не выбран тип награды)
+            if (empty($awardItem['award_id'])) {
+                continue;
+            }
+            
+            $award = new FighterAward();
+            $award->fighter_id = $fighterId;
+            $award->award_id = $awardItem['award_id'];
+            $award->award_date = $awardItem['award_date'] ?? null;
+            $award->award_reason = $awardItem['award_reason'] ?? null;
+            $award->document_description = $awardItem['document_description'] ?? null;
+            
+            if (!$award->save()) {
+                throw new \Exception('Ошибка сохранения награды: ' . $this->getErrorsString($award->errors));
+            }
+            
+            $hasAwardData = true;
+        }
+        
+        return $hasAwardData;
+    }
+
+    /**
+     * Сохраняет пленения для бойца
+     */
+    private function saveCaptures($fighterId, $postData)
+    {
+        $hasCaptureData = false;
+        $captureData = $postData['FighterCapture'] ?? [];
+        
+        // Удаляем старые пленения
+        FighterCapture::deleteAll(['fighter_id' => $fighterId]);
+        
+        foreach ($captureData as $captureItem) {
+            // Пропускаем полностью пустые пленения
+            if (!$this->hasCaptureData($captureItem)) {
+                continue;
+            }
+            
+            $capture = new FighterCapture();
+            $capture->fighter_id = $fighterId;
+            $capture->capture_date = $captureItem['capture_date'] ?? null;
+            $capture->capture_place = $captureItem['capture_place'] ?? null;
+            $capture->camp_name = $captureItem['camp_name'] ?? null;
+            $capture->capture_circumstances = $captureItem['capture_circumstances'] ?? null;
+            $capture->liberated_date = $captureItem['liberated_date'] ?? null;
+            $capture->liberated_by = $captureItem['liberated_by'] ?? null;
+            $capture->liberation_circumstances = $captureItem['liberation_circumstances'] ?? null;
+            $capture->additional_info = $captureItem['additional_info'] ?? null;
+            
+            if (!$capture->save()) {
+                throw new \Exception('Ошибка сохранения пленения: ' . $this->getErrorsString($capture->errors));
+            }
+            
+            $hasCaptureData = true;
+        }
+        
+        return $hasCaptureData;
+    }
+
+    /**
+     * Проверяет, есть ли данные для сохранения пленения
+     */
+    private function hasCaptureData($captureItem)
+    {
+        return !empty(trim($captureItem['capture_date'] ?? '')) || 
+               !empty(trim($captureItem['capture_place'] ?? '')) || 
+               !empty(trim($captureItem['camp_name'] ?? '')) ||
+               !empty(trim($captureItem['capture_circumstances'] ?? '')) ||
+               !empty(trim($captureItem['liberated_date'] ?? '')) ||
+               !empty(trim($captureItem['liberated_by'] ?? '')) ||
+               !empty(trim($captureItem['liberation_circumstances'] ?? '')) ||
+               !empty(trim($captureItem['additional_info'] ?? ''));
     }
 
     public function actionView($id)
@@ -291,29 +329,6 @@ class FighterController extends Controller
     }
 
     /**
-     * Проверяет, есть ли данные для сохранения пленения
-     */
-    private function hasCaptureData($capture)
-    {
-        return !empty(trim($capture->capture_date ?? '')) || 
-               !empty(trim($capture->capture_place ?? '')) || 
-               !empty(trim($capture->camp_name ?? '')) ||
-               !empty(trim($capture->capture_circumstances ?? '')) ||
-               !empty(trim($capture->liberated_date ?? '')) ||
-               !empty(trim($capture->liberated_by ?? '')) ||
-               !empty(trim($capture->liberation_circumstances ?? '')) ||
-               !empty(trim($capture->additional_info ?? ''));
-    }
-
-    /**
-     * Проверяет, есть ли данные для сохранения награды
-     */
-    private function hasAwardData($award)
-    {
-        return !empty($award->award_id); // Главное условие - выбрана награда
-    }
-
-    /**
      * Преобразует ошибки валидации в строку
      */
     private function getErrorsString($errors)
@@ -324,26 +339,5 @@ class FighterController extends Controller
         }
         return implode('; ', $messages);
     }
-
-    private function debugLoadIssue($model, $postData)
-    {
-        Yii::info('=== DEBUG LOAD ISSUE ===', 'fighter');
-        Yii::info('POST keys: ' . print_r(array_keys($postData), true), 'fighter');
-        Yii::info('Model formName: ' . $model->formName(), 'fighter');
-        
-        if (isset($postData[$model->formName()])) {
-            Yii::info('Data for model: ' . print_r($postData[$model->formName()], true), 'fighter');
-        } else {
-            Yii::info('No data found for model: ' . $model->formName(), 'fighter');
-        }
-        
-        // Проверяем обязательные поля
-        $requiredFields = [];
-        foreach ($model->rules() as $rule) {
-            if (isset($rule[1]) && $rule[1] === 'required') {
-                $requiredFields = array_merge($requiredFields, (array)$rule[0]);
-            }
-        }
-        Yii::info('Required fields: ' . print_r($requiredFields, true), 'fighter');
-    }   
+    
 }

@@ -132,12 +132,6 @@ $canSeeModeratorComment = $identity && ($canEdit || $identity->isModerator());
                                 }
                             ],
                             [
-                                'label' => 'Возраст',
-                                'value' => function($model) {
-                                    return $model->age ? $model->age . ' лет' : 'Не указан';
-                                }
-                            ],
-                            [
                                 'attribute' => 'death_year',
                                 'label' => 'Год смерти',
                                 'value' => function($model) {

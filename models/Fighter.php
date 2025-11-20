@@ -61,6 +61,82 @@ class Fighter extends \yii\db\ActiveRecord
     }
 
     /**
+     * Gets query for [[FighterAwards]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getFighterAwards()
+    {
+        return $this->hasMany(FighterAward::class, ['fighter_id' => 'id']);
+    }
+
+    /**
+     * Сценарий для создания/обновления с наградами
+     */
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        $scenarios['default'] = array_merge($scenarios['default'], ['fighterAwards']);
+        return $scenarios;
+    }
+
+    /**
+     * Загрузка связанных данных
+     */
+    public function loadRelatedData($data)
+    {
+        // Загрузка наград
+        if (isset($data['FighterAward'])) {
+            $this->fighterAwards = [];
+            foreach ($data['FighterAward'] as $index => $awardData) {
+                $award = new FighterAward();
+                if (!empty($awardData['id'])) {
+                    $existingAward = FighterAward::findOne($awardData['id']);
+                    if ($existingAward && $existingAward->fighter_id == $this->id) {
+                        $award = $existingAward;
+                    }
+                }
+                $award->load($awardData, '');
+                $this->fighterAwards[] = $award;
+            }
+        }
+    }
+
+    /**
+     * Валидация и сохранение связанных данных
+     */
+    public function saveRelatedData()
+    {
+        $valid = true;
+        
+        // Валидация наград
+        foreach ($this->fighterAwards as $award) {
+            $award->fighter_id = $this->id;
+            if (!$award->validate()) {
+                $valid = false;
+            }
+        }
+        
+        if (!$valid) {
+            return false;
+        }
+        
+        // Удаляем старые награды
+        FighterAward::deleteAll(['fighter_id' => $this->id]);
+        
+        // Сохраняем новые награды
+        foreach ($this->fighterAwards as $award) {
+            if (!empty($award->award_id)) { // Сохраняем только если указана награда
+                $award->fighter_id = $this->id;
+                if (!$award->save(false)) {
+                    return false;
+                }
+            }
+        }
+        
+        return true;
+    }
+    /**
      * {@inheritdoc}
      */
     public function attributeLabels()
@@ -418,6 +494,20 @@ class Fighter extends \yii\db\ActiveRecord
     {
         if (!parent::beforeSave($insert)) {
             return false;
+        }
+
+        // Если запись уже существует и статус "На модерации"
+        if (!$insert && $this->getOldAttribute('status_id') == FighterStatus::STATUS_MODERATION) {
+            // Разрешаем изменение только определенных полей
+            $allowedChanges = ['updated_at', 'moderated_at', 'moderator_id', 'moderation_comment'];
+            $changedAttributes = array_keys($this->getDirtyAttributes());
+            
+            foreach ($changedAttributes as $attribute) {
+                if (!in_array($attribute, $allowedChanges)) {
+                    $this->addError($attribute, 'Редактирование ограничено пока боец находится на модерации.');
+                    return false;
+                }
+            }
         }
 
         // Автоматическая установка user_id при создании

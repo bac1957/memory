@@ -4,6 +4,7 @@
 use yii\helpers\Html;
 use yii\widgets\ActiveForm;
 use yii\bootstrap5\Tabs;
+use app\models\FighterStatus;
 
 /* @var $this yii\web\View */
 /* @var $model app\models\Fighter */
@@ -28,6 +29,34 @@ foreach ($awardsList as $id => $name) {
     ];
 }
 $awardsJson = json_encode($awardsJsArray);
+
+// Определяем, можно ли отправлять на модерацию
+$canSendToModeration = in_array($model->status_id, [
+    FighterStatus::STATUS_DRAFT,
+    FighterStatus::STATUS_REJECTED
+]);
+
+// Определяем классы для алертов статуса
+$statusAlertClass = 'alert-info';
+$statusMessage = '';
+switch ($model->status_id) {
+    case FighterStatus::STATUS_DRAFT:
+        $statusAlertClass = 'alert-info';
+        $statusMessage = 'Боец находится в черновике. Вы можете продолжить редактирование или отправить на проверку.';
+        break;
+    case FighterStatus::STATUS_MODERATION:
+        $statusAlertClass = 'alert-warning';
+        $statusMessage = 'Боец находится на проверке у модератора. Редактирование ограничено.';
+        break;
+    case FighterStatus::STATUS_REJECTED:
+        $statusAlertClass = 'alert-danger';
+        $statusMessage = 'Боец отклонен модератором. Вы можете исправить замечания и отправить на повторную проверку.';
+        break;
+    case FighterStatus::STATUS_PUBLISHED:
+        $statusAlertClass = 'alert-success';
+        $statusMessage = 'Боец проверен и опубликован. Модерация завершена успешно.';
+        break;
+}
 
 // JavaScript для динамического добавления/удаления полей пленений и наград
 $this->registerJs(<<<JS
@@ -231,6 +260,44 @@ $this->registerCssFile('@web/css/tab.css', [
 ?>
 
 <div class="fighter-form">
+    
+    <!-- Блок статуса -->
+    <div class="alert <?= $statusAlertClass ?> mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong><i class="bi bi-info-circle"></i> Текущий статус:</strong> 
+                <?= $model->status ? $model->status->name : 'Не указан' ?>
+                <?php if ($statusMessage): ?>
+                    <br><small><?= $statusMessage ?></small>
+                <?php endif; ?>
+                
+                <!-- Комментарий модератора для отклоненных записей -->
+                <?php if ($model->status_id == FighterStatus::STATUS_REJECTED && !empty($model->moderation_comment)): ?>
+                    <div class="mt-2 p-2 bg-light rounded">
+                        <strong>Комментарий модератора:</strong><br>
+                        <?= Html::encode($model->moderation_comment) ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Бейдж статуса -->
+            <div>
+                <?php 
+                $badgeClass = 'bg-secondary';
+                switch ($model->status_id) {
+                    case FighterStatus::STATUS_DRAFT: $badgeClass = 'bg-secondary'; break;
+                    case FighterStatus::STATUS_MODERATION: $badgeClass = 'bg-warning'; break;
+                    case FighterStatus::STATUS_PUBLISHED: $badgeClass = 'bg-success'; break;
+                    case FighterStatus::STATUS_REJECTED: $badgeClass = 'bg-danger'; break;
+                }
+                ?>
+                <span class="badge <?= $badgeClass ?> fs-6">
+                    <?= $model->status ? $model->status->name : 'Неизвестно' ?>
+                </span>
+            </div>
+        </div>
+    </div>
+
     <?php $form = ActiveForm::begin([
         'id' => 'fighter-form',
         'enableClientValidation' => true,
@@ -291,26 +358,98 @@ $this->registerCssFile('@web/css/tab.css', [
         'options' => ['class' => 'custom-tabs'],
     ]); ?>
 
-    <div class="form-actions">
+    <div class="form-actions mt-4">
         <div class="row">
             <div class="col-md-6">
                 <?= Html::a('<i class="bi bi-arrow-left"></i> Отмена', ['site/user-fighters'], [
                     'class' => 'btn btn-secondary',
                     'onclick' => 'return confirm("Все несохраненные данные будут потеряны. Продолжить?");'
                 ]) ?>
+                
+                <!-- Кнопка отправки на модерацию -->
+                <?php if ($canSendToModeration): ?>
+                    <?= Html::a('<i class="bi bi-send-check"></i> Отправить на проверку', ['fighter/send-to-moderation', 'id' => $model->id], [
+                        'class' => 'btn btn-primary ms-2',
+                        'data' => [
+                            'confirm' => 'Вы уверены, что хотите отправить бойца на проверку модератору?\n\nПосле отправки:\n• Редактирование будет ограничено\n• Ожидайте решения модератора\n• При отклонении вы получите комментарий с замечаниями',
+                            'method' => 'post',
+                        ],
+                    ]) ?>
+                <?php endif; ?>
             </div>
             <div class="col-md-6 text-end">
-                <?= Html::submitButton('<i class="bi bi-check-lg"></i> Сохранить бойца', [
-                    'class' => 'btn btn-success btn-lg',
-                    'name' => 'save-button'
-                ]) ?>
-                <?= Html::submitButton('<i class="bi bi-check-circle"></i> Сохранить и добавить еще', [
-                    'class' => 'btn btn-primary',
-                    'name' => 'save-and-add-button'
-                ]) ?>
+                <div class="btn-group">
+                    <?= Html::submitButton('<i class="bi bi-check-lg"></i> Сохранить', [
+                        'class' => 'btn btn-success',
+                        'name' => 'save-button'
+                    ]) ?>
+                    
+                    <?php if ($model->isNewRecord): ?>
+                        <?= Html::submitButton('<i class="bi bi-plus-circle"></i> Сохранить и добавить еще', [
+                            'class' => 'btn btn-primary',
+                            'name' => 'save-and-add-button'
+                        ]) ?>
+                    <?php else: ?>
+                        <?= Html::a('<i class="bi bi-eye"></i> Просмотр', ['view', 'id' => $model->id], [
+                            'class' => 'btn btn-info',
+                            'target' => '_blank'
+                        ]) ?>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
+        
+        <!-- Информация о модерации -->
+        <?php if ($canSendToModeration): ?>
+            <div class="row mt-3">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <h6><i class="bi bi-lightbulb"></i> Советы перед отправкой на проверку:</h6>
+                        <ul class="mb-0">
+                            <li>Проверьте правильность всех данных</li>
+                            <li>Убедитесь, что заполнены обязательные поля</li>
+                            <li>Добавьте фотографии и документы при наличии</li>
+                            <li>После отправки редактирование будет ограничено до завершения модерации</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 
     <?php ActiveForm::end(); ?>
 </div>
+
+<style>
+.form-actions {
+    border-top: 1px solid #dee2e6;
+    padding-top: 20px;
+    background: #f8f9fa;
+    margin: 0 -20px -20px;
+    padding: 20px;
+}
+
+.alert {
+    border-left: 4px solid;
+}
+
+.alert-info {
+    border-left-color: #0dcaf0;
+}
+
+.alert-warning {
+    border-left-color: #ffc107;
+}
+
+.alert-success {
+    border-left-color: #198754;
+}
+
+.alert-danger {
+    border-left-color: #dc3545;
+}
+
+.badge {
+    font-size: 0.9em;
+}
+</style>

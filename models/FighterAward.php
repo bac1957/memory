@@ -84,4 +84,12 @@ class FighterAward extends ActiveRecord
     {
         return $this->hasOne(MilitaryAward::class, ['id' => 'award_id']);
     }
+
+    /**
+     * Получить название награды
+     */
+    public function getAwardName()
+    {
+        return $this->award ? $this->award->name : 'Неизвестная награда';
+    }
 }
