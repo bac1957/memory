@@ -3,10 +3,12 @@ namespace app\controllers;
 
 use Yii;
 use app\models\FighterPhoto;
+use app\models\Fighter;
 use yii\web\Controller;
 use yii\web\NotFoundHttpException;
 use yii\filters\AccessControl;
 use yii\web\UploadedFile;
+use yii\data\ActiveDataProvider;
 
 class PhotoController extends Controller
 {
@@ -34,7 +36,7 @@ class PhotoController extends Controller
                     ],
                     [
                         'allow' => true,
-                        'actions' => ['upload'],
+                        'actions' => ['index', 'upload', 'set-main', 'delete'],
                         'roles' => ['@'],
                     ],
                     [
@@ -47,6 +49,42 @@ class PhotoController extends Controller
         ];
     }
 
+    /**
+     * Список фотографий бойца
+     */
+    public function actionIndex($fighterId)
+    {
+        $fighterId = (int)$fighterId;
+        
+        // Проверяем существование бойца и права доступа
+        $fighter = Fighter::findOne($fighterId);
+        if (!$fighter) {
+            throw new NotFoundHttpException('Боец не найден.');
+        }
+        
+        // Проверяем, что пользователь имеет доступ к этому бойцу
+        if ($fighter->user_id != Yii::$app->user->id && !Yii::$app->user->can('moderator')) {
+            throw new \yii\web\ForbiddenHttpException('У вас нет доступа к фотографиям этого бойца.');
+        }
+
+        $dataProvider = new ActiveDataProvider([
+            'query' => FighterPhoto::find()
+                ->where(['fighter_id' => $fighterId])
+                ->orderBy(['is_main' => SORT_DESC, 'created_at' => SORT_DESC]),
+            'pagination' => [
+                'pageSize' => 20,
+            ],
+        ]);
+
+        return $this->render('index', [
+            'fighter' => $fighter,
+            'dataProvider' => $dataProvider,
+        ]);
+    }
+
+    /**
+     * Просмотр фотографии
+     */
     public function actionView($id)
     {
         $startTime = microtime(true);
@@ -88,6 +126,9 @@ class PhotoController extends Controller
         }
     }
 
+    /**
+     * Просмотр миниатюры
+     */
     public function actionThumbnail($id)
     {
         $startTime = microtime(true);
@@ -133,6 +174,167 @@ class PhotoController extends Controller
             Yii::error("Ошибка при показе миниатюры фото ID: $id - {$e->getMessage()} за {$duration}ms");
             throw $e;
         }
+    }
+
+    /**
+     * Загрузка новой фотографии для бойца
+     */
+    public function actionUpload($fighterId)
+    {
+        $fighterId = (int)$fighterId;
+        
+        $fighter = Fighter::findOne($fighterId);
+        if (!$fighter) {
+            throw new NotFoundHttpException('Боец не найден.');
+        }
+        
+        // Проверяем, что пользователь имеет доступ к этому бойцу
+        if ($fighter->user_id != Yii::$app->user->id && !Yii::$app->user->can('moderator')) {
+            throw new \yii\web\ForbiddenHttpException('У вас нет прав для загрузки фотографий этого бойца.');
+        }
+
+        $model = new FighterPhoto();
+        $model->fighter_id = $fighterId;
+
+        if (Yii::$app->request->isPost) {
+            $model->load(Yii::$app->request->post());
+            $uploadedFile = UploadedFile::getInstance($model, 'photo_file');
+            
+            if ($uploadedFile) {
+                // Проверка размера файла
+                if ($uploadedFile->size > self::MAX_FILE_SIZE) {
+                    Yii::$app->session->setFlash('error', 'Размер файла не должен превышать 10MB');
+                    return $this->refresh();
+                }
+                
+                // Проверка типа файла
+                if (!in_array($uploadedFile->type, self::ALLOWED_MIME_TYPES)) {
+                    Yii::$app->session->setFlash('error', 'Недопустимый формат файла. Разрешены: JPEG, PNG, GIF, WebP');
+                    return $this->refresh();
+                }
+                
+                // Проверка содержимого файла
+                $tempPath = $uploadedFile->tempName;
+                if (!@getimagesize($tempPath)) {
+                    Yii::$app->session->setFlash('error', 'Файл не является корректным изображением');
+                    return $this->refresh();
+                }
+                
+                $model->photo_data = file_get_contents($tempPath);
+                $model->mime_type = $uploadedFile->type;
+                $model->file_name = $uploadedFile->name;
+                $model->file_size = $uploadedFile->size;
+                $model->status = FighterPhoto::STATUS_PENDING;
+                
+                if ($model->save()) {
+                    Yii::info("Пользователь " . Yii::$app->user->id . " загрузил фото ID: {$model->id} для бойца ID: $fighterId");
+                    Yii::$app->session->setFlash('success', 'Фотография успешно загружена и отправлена на модерацию');
+                    return $this->redirect(['index', 'fighterId' => $fighterId]);
+                } else {
+                    Yii::error('Ошибка сохранения фото: ' . implode(', ', $model->getFirstErrors()));
+                    Yii::$app->session->setFlash('error', 'Ошибка при сохранении фотографии');
+                }
+            } else {
+                Yii::$app->session->setFlash('error', 'Необходимо выбрать файл для загрузки');
+            }
+        }
+
+        return $this->render('upload', [
+            'model' => $model,
+            'fighter' => $fighter,
+        ]);
+    }
+
+    /**
+     * Установка фотографии как основной
+     */
+    public function actionSetMain($id)
+    {
+        $photo = $this->findModel($id);
+        
+        // Проверяем права доступа
+        $fighter = $photo->fighter;
+        if ($fighter->user_id != Yii::$app->user->id && !Yii::$app->user->can('moderator')) {
+            throw new \yii\web\ForbiddenHttpException('У вас нет прав для изменения этого бойца.');
+        }
+        
+        // Проверяем, что фото утверждено
+        if ($photo->status != FighterPhoto::STATUS_APPROVED) {
+            Yii::$app->session->setFlash('error', 'Нельзя установить немодерированную фотографию как основную');
+            return $this->redirect(['index', 'fighterId' => $fighter->id]);
+        }
+
+        // Снимаем предыдущую основную фотографию
+        FighterPhoto::updateAll(
+            ['is_main' => false],
+            ['fighter_id' => $fighter->id, 'is_main' => true]
+        );
+
+        // Устанавливаем новую основную фотографию
+        $photo->is_main = true;
+        if ($photo->save()) {
+            Yii::info("Пользователь " . Yii::$app->user->id . " установил фото ID: $id как основное для бойца ID: {$fighter->id}");
+            Yii::$app->session->setFlash('success', 'Основная фотография успешно изменена');
+        } else {
+            Yii::$app->session->setFlash('error', 'Ошибка при изменении основной фотографии');
+        }
+
+        return $this->redirect(['index', 'fighterId' => $fighter->id]);
+    }
+
+    /**
+     * Удаление фотографии
+     */
+    public function actionDelete($id)
+    {
+        $photo = $this->findModel($id);
+        $fighterId = $photo->fighter_id;
+        
+        // Проверяем права доступа
+        $fighter = $photo->fighter;
+        if ($fighter->user_id != Yii::$app->user->id && !Yii::$app->user->can('moderator')) {
+            throw new \yii\web\ForbiddenHttpException('У вас нет прав для удаления этой фотографии.');
+        }
+
+        if ($photo->delete()) {
+            Yii::info("Пользователь " . Yii::$app->user->id . " удалил фото ID: $id бойца ID: $fighterId");
+            Yii::$app->session->setFlash('success', 'Фотография успешно удалена');
+        } else {
+            Yii::$app->session->setFlash('error', 'Ошибка при удалении фотографии');
+        }
+
+        return $this->redirect(['index', 'fighterId' => $fighterId]);
+    }
+
+    /**
+     * Модерация фотографии
+     */
+    public function actionModerate($id, $status)
+    {
+        if (!Yii::$app->user->can('moderator')) {
+            throw new \yii\web\ForbiddenHttpException('Нет прав для модерации');
+        }
+        
+        $photo = $this->findModel($id);
+        $oldStatus = $photo->status;
+        
+        if (!in_array($status, [FighterPhoto::STATUS_APPROVED, FighterPhoto::STATUS_REJECTED])) {
+            throw new \yii\web\BadRequestHttpException('Неверный статус');
+        }
+        
+        $photo->status = $status;
+        $photo->moderated_by = Yii::$app->user->id;
+        $photo->moderated_at = new \yii\db\Expression('NOW()');
+        
+        if ($photo->save()) {
+            Yii::info("Модератор {$photo->moderated_by} изменил статус фото ID: {$photo->id} с {$oldStatus} на {$status}");
+            Yii::$app->session->setFlash('success', 'Статус фотографии обновлен');
+        } else {
+            Yii::error('Ошибка обновления статуса фото: ' . implode(', ', $photo->getFirstErrors()));
+            Yii::$app->session->setFlash('error', 'Ошибка при обновлении статуса');
+        }
+        
+        return $this->redirect(Yii::$app->request->referrer ?: ['index', 'fighterId' => $photo->fighter_id]);
     }
 
     /**
@@ -235,97 +437,6 @@ class PhotoController extends Controller
         imagedestroy($placeholder);
         
         return $imageData;
-    }
-
-    /**
-     * Загрузка новой фотографии
-     */
-    public function actionUpload()
-    {
-        if (!Yii::$app->user->can('uploadPhoto')) {
-            throw new \yii\web\ForbiddenHttpException('Нет прав для загрузки фотографий');
-        }
-        
-        $model = new FighterPhoto();
-        
-        if (Yii::$app->request->isPost) {
-            $model->load(Yii::$app->request->post());
-            $uploadedFile = UploadedFile::getInstance($model, 'photo_file');
-            
-            if ($uploadedFile) {
-                // Проверка размера файла
-                if ($uploadedFile->size > self::MAX_FILE_SIZE) {
-                    Yii::$app->session->setFlash('error', 'Размер файла не должен превышать 10MB');
-                    return $this->refresh();
-                }
-                
-                // Проверка типа файла
-                if (!in_array($uploadedFile->type, self::ALLOWED_MIME_TYPES)) {
-                    Yii::$app->session->setFlash('error', 'Недопустимый формат файла. Разрешены: JPEG, PNG, GIF, WebP');
-                    return $this->refresh();
-                }
-                
-                // Проверка содержимого файла
-                $tempPath = $uploadedFile->tempName;
-                if (!@getimagesize($tempPath)) {
-                    Yii::$app->session->setFlash('error', 'Файл не является корректным изображением');
-                    return $this->refresh();
-                }
-                
-                $model->photo_data = file_get_contents($tempPath);
-                $model->mime_type = $uploadedFile->type;
-                $model->file_name = $uploadedFile->name;
-                $model->file_size = $uploadedFile->size;
-                $model->uploaded_by = Yii::$app->user->id;
-                $model->status = FighterPhoto::STATUS_PENDING; // На модерации
-                
-                if ($model->save()) {
-                    Yii::info("Пользователь {$model->uploaded_by} загрузил фото ID: {$model->id}");
-                    Yii::$app->session->setFlash('success', 'Фотография успешно загружена и отправлена на модерацию');
-                    return $this->redirect(['view', 'id' => $model->id]);
-                } else {
-                    Yii::error('Ошибка сохранения фото: ' . implode(', ', $model->getFirstErrors()));
-                    Yii::$app->session->setFlash('error', 'Ошибка при сохранении фотографии');
-                }
-            } else {
-                Yii::$app->session->setFlash('error', 'Необходимо выбрать файл для загрузки');
-            }
-        }
-        
-        return $this->render('upload', [
-            'model' => $model,
-        ]);
-    }
-
-    /**
-     * Модерация фотографии
-     */
-    public function actionModerate($id, $status)
-    {
-        if (!Yii::$app->user->can('moderator')) {
-            throw new \yii\web\ForbiddenHttpException('Нет прав для модерации');
-        }
-        
-        $photo = $this->findModel($id);
-        $oldStatus = $photo->status;
-        
-        if (!in_array($status, [FighterPhoto::STATUS_APPROVED, FighterPhoto::STATUS_REJECTED])) {
-            throw new \yii\web\BadRequestHttpException('Неверный статус');
-        }
-        
-        $photo->status = $status;
-        $photo->moderated_by = Yii::$app->user->id;
-        $photo->moderated_at = new \yii\db\Expression('NOW()');
-        
-        if ($photo->save()) {
-            Yii::info("Модератор {$photo->moderated_by} изменил статус фото ID: {$photo->id} с {$oldStatus} на {$status}");
-            Yii::$app->session->setFlash('success', 'Статус фотографии обновлен');
-        } else {
-            Yii::error('Ошибка обновления статуса фото: ' . implode(', ', $photo->getFirstErrors()));
-            Yii::$app->session->setFlash('error', 'Ошибка при обновлении статуса');
-        }
-        
-        return $this->redirect(Yii::$app->request->referrer ?: ['site/index']);
     }
 
     /**

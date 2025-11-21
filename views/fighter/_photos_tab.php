@@ -16,7 +16,7 @@
         <div class="text-center">
             <?= \yii\helpers\Html::a(
                 '<i class="fas fa-images"></i> Управление фотографиями', 
-                ['fighter-photo/index', 'fighterId' => $model->id], 
+                ['photo/index', 'fighterId' => $model->id], 
                 ['class' => 'btn btn-primary btn-lg']
             ) ?>
         </div>
