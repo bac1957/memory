@@ -11,8 +11,10 @@
 * Разработчик: Александр Васильков
 * E-Mail:	    bac@sura.ru
 * ------------------------------------------------------------------------
-* Версия: 0.0.1
+* Версия: 0.0.2
 * Дата:   06.09.2025
+* Изменения:
+* Дата:   24.11.2025 Добовлено в таблицу fighter_photo поле upload_by
 **************************************************************************
  */
 
@@ -190,6 +192,7 @@ CREATE TABLE `fighter_photo` (
     `thumbnail_data` MEDIUMBLOB COMMENT 'Эскиз фото',
     `mime_type` VARCHAR(50) NOT NULL COMMENT 'Тип фото',
     `file_size` INT NOT NULL COMMENT 'Размер фото',
+    `upload_by` INT COMMENT 'Ид. пользователя загрузившего фото бойца',
     `description` TEXT  COMMENT 'Описание фото',
     `ai_description` TEXT COMMENT 'Описание от ИИ',
     `photo_year` SMALLINT COMMENT 'Год фотографии',
@@ -204,8 +207,10 @@ CREATE TABLE `fighter_photo` (
     
     FOREIGN KEY (`fighter_id`) REFERENCES `fighter`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`moderator_id`) REFERENCES `user`(`id`),
+    FOREIGN KEY (`upload_by`) REFERENCES `user`(`id`) ON DELETE CASCADE,
     
-    INDEX `idx_fighter_status` (`fighter_id`, `status`)
+    INDEX `idx_fighter_status` (`fighter_id`, `status`),
+    INDEX `idx_uploaded_by` (`uploaded_by`)
 ) ENGINE=InnoDB COMMENT='Фотографии';
 
 -- Боевой путь

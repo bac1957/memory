@@ -7,7 +7,7 @@
 *                Модель фото бойцов
 * 
 * @file models/FighterPhoto.php
-* @version 0.0.1
+* @version 0.0.2
 *
 * @author Александр Васильков
 * @author Home Lab, Пенза (с), 2025
@@ -40,7 +40,10 @@ class FighterPhoto extends ActiveRecord
     const THUMBNAIL_WIDTH = 400;
     const THUMBNAIL_HEIGHT = 400;
 
-    public $imageFile;
+    /**
+     * @var UploadedFile Атрибут для загрузки файла через форму
+     */
+    public $photo_file;
 
     public static function tableName()
     {
@@ -63,26 +66,32 @@ class FighterPhoto extends ActiveRecord
     {
         return [
             [['fighter_id'], 'required'],
-            [['fighter_id', 'file_size', 'photo_year', 'moderator_id'], 'integer'],
+            [['fighter_id', 'file_size', 'photo_year', 'moderator_id', 'uploaded_by'], 'integer'],
             [['photo_year'], 'integer', 'min' => 1900, 'max' => 2025],
-            [['description', 'ai_description'], 'string'],
-            [['photo_data', 'thumbnail_data'], 'safe'],
-            [['mime_type'], 'string', 'max' => 50],
-            [['status'], 'string', 'max' => 10],
-            [['is_main'], 'boolean'],
             
-            [['imageFile'], 'file', 
-                'skipOnEmpty' => true, // Изменено на true для обновления
-                'extensions' => 'png, jpg, jpeg',
+            // Правила для загрузки файла через форму
+            [['photo_file'], 'file', 
+                'skipOnEmpty' => false, 
+                'extensions' => 'jpg, jpeg, png, gif, webp', 
                 'maxSize' => self::MAX_FILE_SIZE,
-                'mimeTypes' => 'image/jpeg, image/png, image/jpg'
+                'mimeTypes' => 'image/jpeg, image/png, image/gif, image/webp',
+                'on' => 'upload' // Сценарий для загрузки
             ],
+            
+            [['description', 'ai_description'], 'string'],
+            [['description'], 'string', 'max' => 500],
+            [['photo_data', 'thumbnail_data'], 'safe'],
+            [['mime_type', 'file_name'], 'string', 'max' => 255],
+            [['status'], 'string', 'max' => 20],
+            [['is_main'], 'boolean'],
             
             [['status'], 'default', 'value' => self::STATUS_PENDING],
             [['is_main'], 'default', 'value' => 0],
+            [['file_size'], 'default', 'value' => 0],
             
             [['fighter_id'], 'exist', 'skipOnError' => true, 'targetClass' => Fighter::class, 'targetAttribute' => ['fighter_id' => 'id']],
             [['moderator_id'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['moderator_id' => 'id']],
+            [['uploaded_by'], 'exist', 'skipOnError' => true, 'targetClass' => User::class, 'targetAttribute' => ['uploaded_by' => 'id']],
         ];
     }
 
@@ -94,7 +103,9 @@ class FighterPhoto extends ActiveRecord
             'photo_data' => 'Фото',
             'thumbnail_data' => 'Эскиз',
             'mime_type' => 'Тип файла',
+            'file_name' => 'Имя файла',
             'file_size' => 'Размер файла',
+            'photo_file' => 'Файл фотографии',
             'description' => 'Описание',
             'ai_description' => 'Описание от ИИ',
             'photo_year' => 'Год фотографии',
@@ -104,8 +115,21 @@ class FighterPhoto extends ActiveRecord
             'updated_at' => 'Дата обновления',
             'moderated_at' => 'Дата модерации',
             'moderator_id' => 'Модератор',
-            'imageFile' => 'Фотография',
+            'uploaded_by' => 'Загружено пользователем',
         ];
+    }
+
+    /**
+     * Сценарии валидации
+     */
+    public function scenarios()
+    {
+        $scenarios = parent::scenarios();
+        $scenarios['upload'] = ['fighter_id', 'photo_file', 'description', 'photo_year', 'file_name', 'file_size', 'mime_type'];
+        $scenarios['update'] = ['description', 'photo_year', 'is_main'];
+        $scenarios['moderate'] = ['status', 'moderator_id', 'moderated_at'];
+        
+        return $scenarios;
     }
 
     /**
@@ -113,16 +137,20 @@ class FighterPhoto extends ActiveRecord
      */
     public function uploadToDb()
     {
-        if (!$this->imageFile || !$this->validate()) {
+        if (!$this->photo_file || !$this->validate(['photo_file'])) {
+            Yii::error('Ошибка валидации файла: ' . implode(', ', $this->getErrors('photo_file')), 'fighter');
             return false;
         }
 
         try {
             // Читаем файл в бинарном формате
-            $filePath = $this->imageFile->tempName;
+            $filePath = $this->photo_file->tempName;
             $photoData = file_get_contents($filePath);
-            $this->file_size = strlen($photoData);
-            $this->mime_type = $this->imageFile->type;
+            
+            // Сохраняем информацию о файле
+            $this->file_size = $this->photo_file->size;
+            $this->mime_type = $this->photo_file->type;
+            $this->file_name = $this->photo_file->name;
             
             // Сохраняем оригинал
             $this->photo_data = $photoData;
@@ -130,11 +158,14 @@ class FighterPhoto extends ActiveRecord
             // Создаем и сохраняем миниатюру
             $this->createThumbnail($filePath);
             
+            // Генерируем AI описание
+            $this->generateAIDescription();
+            
             return true;
             
         } catch (\Exception $e) {
             Yii::error('Ошибка загрузки фото в БД: ' . $e->getMessage(), 'fighter');
-            $this->addError('imageFile', 'Ошибка загрузки изображения: ' . $e->getMessage());
+            $this->addError('photo_file', 'Ошибка загрузки изображения: ' . $e->getMessage());
             return false;
         }
     }
@@ -174,10 +205,118 @@ class FighterPhoto extends ActiveRecord
         
         } catch (\Exception $e) {
             Yii::error('Ошибка создания миниатюры: ' . $e->getMessage(), 'fighter');
-            // Не прерываем сохранение, если миниатюра не создалась
+            // Создаем базовую миниатюру в случае ошибки
+            $this->createBasicThumbnail($filePath);
         }
     }
-    
+
+    /**
+     * Создание базовой миниатюры через GD
+     */
+    private function createBasicThumbnail($filePath)
+    {
+        try {
+            // Определяем тип изображения
+            $imageInfo = getimagesize($filePath);
+            if (!$imageInfo) {
+                throw new \Exception('Не удалось определить тип изображения');
+            }
+            
+            $mimeType = $imageInfo['mime'];
+            
+            // Создаем изображение из файла
+            switch ($mimeType) {
+                case 'image/jpeg':
+                    $sourceImage = imagecreatefromjpeg($filePath);
+                    break;
+                case 'image/png':
+                    $sourceImage = imagecreatefrompng($filePath);
+                    break;
+                case 'image/gif':
+                    $sourceImage = imagecreatefromgif($filePath);
+                    break;
+                case 'image/webp':
+                    $sourceImage = imagecreatefromwebp($filePath);
+                    break;
+                default:
+                    throw new \Exception('Неподдерживаемый формат изображения: ' . $mimeType);
+            }
+            
+            if (!$sourceImage) {
+                throw new \Exception('Не удалось создать изображение из файла');
+            }
+            
+            // Получаем размеры оригинала
+            $srcWidth = imagesx($sourceImage);
+            $srcHeight = imagesy($sourceImage);
+            
+            // Вычисляем пропорции для миниатюры
+            $ratio = $srcWidth / $srcHeight;
+            $thumbWidth = self::THUMBNAIL_WIDTH;
+            $thumbHeight = self::THUMBNAIL_HEIGHT;
+            
+            if ($thumbWidth / $thumbHeight > $ratio) {
+                $thumbWidth = $thumbHeight * $ratio;
+            } else {
+                $thumbHeight = $thumbWidth / $ratio;
+            }
+            
+            // Создаем миниатюру
+            $thumbnail = imagecreatetruecolor($thumbWidth, $thumbHeight);
+            
+            // Сохраняем прозрачность для PNG и GIF
+            if ($mimeType == 'image/png' || $mimeType == 'image/gif') {
+                imagealphablending($thumbnail, false);
+                imagesavealpha($thumbnail, true);
+                $transparent = imagecolorallocatealpha($thumbnail, 255, 255, 255, 127);
+                imagefilledrectangle($thumbnail, 0, 0, $thumbWidth, $thumbHeight, $transparent);
+            }
+            
+            // Копируем и изменяем размер
+            imagecopyresampled($thumbnail, $sourceImage, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $srcWidth, $srcHeight);
+            
+            // Сохраняем миниатюру в буфер
+            ob_start();
+            imagejpeg($thumbnail, null, 85);
+            $thumbnailData = ob_get_clean();
+            
+            $this->thumbnail_data = $thumbnailData;
+            
+            // Освобождаем память
+            imagedestroy($sourceImage);
+            imagedestroy($thumbnail);
+            
+        } catch (\Exception $e) {
+            Yii::error('Ошибка создания базовой миниатюры: ' . $e->getMessage(), 'fighter');
+            // В крайнем случае создаем заглушку
+            $this->thumbnail_data = $this->createPlaceholderThumbnail();
+        }
+    }
+ 
+    /**
+     * Создание заглушки для миниатюры
+     */
+    private function createPlaceholderThumbnail()
+    {
+        $placeholder = imagecreate(self::THUMBNAIL_WIDTH, self::THUMBNAIL_HEIGHT);
+        $backgroundColor = imagecolorallocate($placeholder, 240, 240, 240);
+        $textColor = imagecolorallocate($placeholder, 150, 150, 150);
+        
+        $text = 'Thumbnail';
+        $textWidth = imagefontwidth(5) * strlen($text);
+        $x = (self::THUMBNAIL_WIDTH - $textWidth) / 2;
+        $y = (self::THUMBNAIL_HEIGHT - imagefontheight(5)) / 2;
+        
+        imagefilledrectangle($placeholder, 0, 0, self::THUMBNAIL_WIDTH, self::THUMBNAIL_HEIGHT, $backgroundColor);
+        imagestring($placeholder, 5, $x, $y, $text, $textColor);
+        
+        ob_start();
+        imagejpeg($placeholder);
+        $imageData = ob_get_clean();
+        imagedestroy($placeholder);
+        
+        return $imageData;
+    }
     /**
      * Упрощенная генерация описания (без AI API)
      */
@@ -197,6 +336,10 @@ class FighterPhoto extends ActiveRecord
             
             if ($this->fighter) {
                 $description .= ". Боец: {$this->fighter->fullName}";
+                
+                if ($this->fighter->militaryRank) {
+                    $description .= ", {$this->fighter->militaryRank->name}";
+                }
             }
             
             $description .= ". Историческая фотография времен Великой Отечественной войны.";
@@ -264,6 +407,34 @@ class FighterPhoto extends ActiveRecord
     }
 
     /**
+     * Получить текст статуса
+     */
+    public function getStatusText()
+    {
+        $statuses = [
+            self::STATUS_PENDING => 'На модерации',
+            self::STATUS_APPROVED => 'Одобрено',
+            self::STATUS_REJECTED => 'Отклонено',
+        ];
+        
+        return $statuses[$this->status] ?? 'Неизвестно';
+    }
+
+    /**
+     * Получить CSS класс для статуса
+     */
+    public function getStatusClass()
+    {
+        $classes = [
+            self::STATUS_PENDING => 'warning',
+            self::STATUS_APPROVED => 'success',
+            self::STATUS_REJECTED => 'danger',
+        ];
+        
+        return $classes[$this->status] ?? 'default';
+    }
+
+    /**
      * Установить как главную фотографию
      */
     public function setAsMain()
@@ -276,7 +447,7 @@ class FighterPhoto extends ActiveRecord
         
         // Устанавливаем текущую как главную
         $this->is_main = 1;
-        return $this->save();
+        return $this->save(false, ['is_main', 'updated_at']);
     }
 
     /**
@@ -295,7 +466,7 @@ class FighterPhoto extends ActiveRecord
         $this->status = self::STATUS_APPROVED;
         $this->moderated_at = new Expression('NOW()');
         $this->moderator_id = $moderatorId ?: Yii::$app->user->id;
-        return $this->save();
+        return $this->save(false, ['status', 'moderator_id', 'moderated_at', 'updated_at']);
     }
 
     /**
@@ -311,7 +482,35 @@ class FighterPhoto extends ActiveRecord
             $this->description = ($this->description ? $this->description . "\n\nПричина отклонения: " : "Причина отклонения: ") . $reason;
         }
         
-        return $this->save();
+        return $this->save(false, ['status', 'moderator_id', 'moderated_at', 'description', 'updated_at']);
+    }
+
+    /**
+     * Проверить, можно ли установить как основную
+     */
+    public function canSetAsMain()
+    {
+        return $this->status === self::STATUS_APPROVED;
+    }
+
+    /**
+     * Проверить, можно ли удалить
+     */
+    public function canDelete()
+    {
+        $user = Yii::$app->user;
+        if ($user->isGuest) {
+            return false;
+        }
+        
+        // Модераторы и админы могут удалять любые фото
+        $userModel = $user->identity;
+        if (in_array($userModel->role, ['Moderator', 'Admin', 'Develop'])) {
+            return true;
+        }
+        
+        // Пользователи могут удалять только свои фото
+        return ($this->fighter && $this->fighter->user_id == $user->id);
     }
 
     /**
@@ -323,17 +522,21 @@ class FighterPhoto extends ActiveRecord
             return false;
         }
 
-        // Если это главное фото, сбрасываем другие главные фото
-        if ($this->is_main) {
-            self::updateAll(
-                ['is_main' => 0],
-                ['fighter_id' => $this->fighter_id]
-            );
+        if ($insert) {
+            // Устанавливаем пользователя, загрузившего фото
+            if (Yii::$app->user->isGuest) {
+                $this->uploaded_by = null;
+            } else {
+                $this->uploaded_by = Yii::$app->user->id;
+            }
         }
 
-        // Автоматическая генерация описания если его нет
-        if ($insert && empty($this->description) && empty($this->ai_description)) {
-            $this->generateAIDescription();
+        // Если это главное фото, сбрасываем другие главные фото
+        if ($this->is_main && $this->status === self::STATUS_APPROVED) {
+            self::updateAll(
+                ['is_main' => 0],
+                ['fighter_id' => $this->fighter_id, 'is_main' => 1]
+            );
         }
 
         return true;
@@ -378,6 +581,14 @@ class FighterPhoto extends ActiveRecord
     }
 
     /**
+     * Gets query for [[Uploader]].
+     */
+    public function getUploader()
+    {
+        return $this->hasOne(User::class, ['id' => 'uploaded_by']);
+    }
+
+    /**
      * Получить все одобренные фото бойца
      */
     public static function getApprovedPhotos($fighterId)
@@ -396,5 +607,26 @@ class FighterPhoto extends ActiveRecord
         return self::find()
             ->where(['fighter_id' => $fighterId, 'is_main' => 1, 'status' => self::STATUS_APPROVED])
             ->one();
+    }
+
+    /**
+     * Получить фото на модерации
+     */
+    public static function getPendingPhotos()
+    {
+        return self::find()
+            ->where(['status' => self::STATUS_PENDING])
+            ->orderBy(['created_at' => SORT_ASC])
+            ->all();
+    }
+
+    /**
+     * Получить количество фото на модерации
+     */
+    public static function getPendingCount()
+    {
+        return self::find()
+            ->where(['status' => self::STATUS_PENDING])
+            ->count();
     }
 }
