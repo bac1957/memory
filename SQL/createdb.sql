@@ -192,7 +192,7 @@ CREATE TABLE `fighter_photo` (
     `thumbnail_data` MEDIUMBLOB COMMENT 'Эскиз фото',
     `mime_type` VARCHAR(50) NOT NULL COMMENT 'Тип фото',
     `file_size` INT NOT NULL COMMENT 'Размер фото',
-    `upload_by` INT COMMENT 'Ид. пользователя загрузившего фото бойца',
+    `uploaded_by` INT COMMENT 'Ид. пользователя загрузившего фото бойца',
     `description` TEXT  COMMENT 'Описание фото',
     `ai_description` TEXT COMMENT 'Описание от ИИ',
     `photo_year` SMALLINT COMMENT 'Год фотографии',
@@ -204,10 +204,11 @@ CREATE TABLE `fighter_photo` (
     `updated_at` TIMESTAMP COMMENT 'Дата и время обновления записи',
     `moderated_at` TIMESTAMP COMMENT 'Дата и время модерирования',
     `moderator_id` INT COMMENT 'id записи пользователя модератора',
-    
+  	`file_name` VARCHAR( 255 ) COMMENT 'Имя файла',
+
     FOREIGN KEY (`fighter_id`) REFERENCES `fighter`(`id`) ON DELETE CASCADE,
     FOREIGN KEY (`moderator_id`) REFERENCES `user`(`id`),
-    FOREIGN KEY (`upload_by`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+    FOREIGN KEY (`uploaded_by`) REFERENCES `user`(`id`) ON DELETE CASCADE,
     
     INDEX `idx_fighter_status` (`fighter_id`, `status`),
     INDEX `idx_uploaded_by` (`uploaded_by`)

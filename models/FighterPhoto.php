@@ -24,8 +24,6 @@ namespace app\models;
 use Yii;
 use yii\db\ActiveRecord;
 use yii\web\UploadedFile;
-use yii\imagine\Image;
-use Imagine\Image\Box;
 use yii\behaviors\TimestampBehavior;
 use yii\db\Expression;
 
@@ -81,7 +79,8 @@ class FighterPhoto extends ActiveRecord
             [['description', 'ai_description'], 'string'],
             [['description'], 'string', 'max' => 500],
             [['photo_data', 'thumbnail_data'], 'safe'],
-            [['mime_type', 'file_name'], 'string', 'max' => 255],
+            [['mime_type'], 'string', 'max' => 50],
+            [['file_name'], 'string', 'max' => 255],
             [['status'], 'string', 'max' => 20],
             [['is_main'], 'boolean'],
             
@@ -125,8 +124,8 @@ class FighterPhoto extends ActiveRecord
     public function scenarios()
     {
         $scenarios = parent::scenarios();
-        $scenarios['upload'] = ['fighter_id', 'photo_file', 'description', 'photo_year', 'file_name', 'file_size', 'mime_type'];
-        $scenarios['update'] = ['description', 'photo_year', 'is_main'];
+        $scenarios['upload'] = ['fighter_id', 'photo_file', 'description', 'photo_year', 'file_name', 'file_size', 'mime_type', 'uploaded_by'];
+        $scenarios['update'] = ['description', 'photo_year', 'is_main', 'file_name'];
         $scenarios['moderate'] = ['status', 'moderator_id', 'moderated_at'];
         
         return $scenarios;
@@ -161,6 +160,11 @@ class FighterPhoto extends ActiveRecord
             // Генерируем AI описание
             $this->generateAIDescription();
             
+            // Устанавливаем пользователя, загрузившего фото
+            if (!Yii::$app->user->isGuest) {
+                $this->uploaded_by = Yii::$app->user->id;
+            }
+            
             return true;
             
         } catch (\Exception $e) {
@@ -171,58 +175,19 @@ class FighterPhoto extends ActiveRecord
     }
 
     /**
-     * Создание миниатюры
+     * Создание миниатюры с использованием GD
      */
     private function createThumbnail($filePath)
     {
         try {
-            $image = Image::getImagine()->open($filePath);
-            
-            // Получаем размеры оригинала
-            $size = $image->getSize();
-            $width = $size->getWidth();
-            $height = $size->getHeight();
-            
-            // Вычисляем пропорции для миниатюры
-            $ratio = $width / $height;
-            $thumbWidth = self::THUMBNAIL_WIDTH;
-            $thumbHeight = self::THUMBNAIL_HEIGHT;
-            
-            if ($thumbWidth / $thumbHeight > $ratio) {
-                $thumbWidth = $thumbHeight * $ratio;
-            } else {
-                $thumbHeight = $thumbWidth / $ratio;
-            }
-            
-            $thumbnail = $image->thumbnail(
-                new Box($thumbWidth, $thumbHeight),
-                \Imagine\Image\ImageInterface::THUMBNAIL_INSET
-            );
-        
-            // Конвертируем миниатюру в бинарные данные
-            $thumbnailData = $thumbnail->get('jpg', ['quality' => 85]);
-            $this->thumbnail_data = $thumbnailData;
-        
-        } catch (\Exception $e) {
-            Yii::error('Ошибка создания миниатюры: ' . $e->getMessage(), 'fighter');
-            // Создаем базовую миниатюру в случае ошибки
-            $this->createBasicThumbnail($filePath);
-        }
-    }
-
-    /**
-     * Создание базовой миниатюры через GD
-     */
-    private function createBasicThumbnail($filePath)
-    {
-        try {
             // Определяем тип изображения
-            $imageInfo = getimagesize($filePath);
+            $imageInfo = @getimagesize($filePath);
             if (!$imageInfo) {
                 throw new \Exception('Не удалось определить тип изображения');
             }
             
             $mimeType = $imageInfo['mime'];
+            list($srcWidth, $srcHeight) = $imageInfo;
             
             // Создаем изображение из файла
             switch ($mimeType) {
@@ -236,6 +201,9 @@ class FighterPhoto extends ActiveRecord
                     $sourceImage = imagecreatefromgif($filePath);
                     break;
                 case 'image/webp':
+                    if (!function_exists('imagecreatefromwebp')) {
+                        throw new \Exception('WebP не поддерживается на этом сервере');
+                    }
                     $sourceImage = imagecreatefromwebp($filePath);
                     break;
                 default:
@@ -246,19 +214,15 @@ class FighterPhoto extends ActiveRecord
                 throw new \Exception('Не удалось создать изображение из файла');
             }
             
-            // Получаем размеры оригинала
-            $srcWidth = imagesx($sourceImage);
-            $srcHeight = imagesy($sourceImage);
-            
             // Вычисляем пропорции для миниатюры
             $ratio = $srcWidth / $srcHeight;
             $thumbWidth = self::THUMBNAIL_WIDTH;
             $thumbHeight = self::THUMBNAIL_HEIGHT;
             
             if ($thumbWidth / $thumbHeight > $ratio) {
-                $thumbWidth = $thumbHeight * $ratio;
+                $thumbWidth = (int)($thumbHeight * $ratio);
             } else {
-                $thumbHeight = $thumbWidth / $ratio;
+                $thumbHeight = (int)($thumbWidth / $ratio);
             }
             
             // Создаем миниатюру
@@ -270,12 +234,16 @@ class FighterPhoto extends ActiveRecord
                 imagesavealpha($thumbnail, true);
                 $transparent = imagecolorallocatealpha($thumbnail, 255, 255, 255, 127);
                 imagefilledrectangle($thumbnail, 0, 0, $thumbWidth, $thumbHeight, $transparent);
+            } else {
+                // Для JPEG устанавливаем белый фон
+                $white = imagecolorallocate($thumbnail, 255, 255, 255);
+                imagefill($thumbnail, 0, 0, $white);
             }
             
-            // Копируем и изменяем размер
+            // Копируем и изменяем размер с ресемплированием
             imagecopyresampled($thumbnail, $sourceImage, 0, 0, 0, 0, $thumbWidth, $thumbHeight, $srcWidth, $srcHeight);
             
-            // Сохраняем миниатюру в буфер
+            // Сохраняем миниатюру в буфер как JPEG (универсальный формат для миниатюр)
             ob_start();
             imagejpeg($thumbnail, null, 85);
             $thumbnailData = ob_get_clean();
@@ -287,28 +255,34 @@ class FighterPhoto extends ActiveRecord
             imagedestroy($thumbnail);
             
         } catch (\Exception $e) {
-            Yii::error('Ошибка создания базовой миниатюры: ' . $e->getMessage(), 'fighter');
+            Yii::error('Ошибка создания миниатюры: ' . $e->getMessage(), 'fighter');
             // В крайнем случае создаем заглушку
             $this->thumbnail_data = $this->createPlaceholderThumbnail();
         }
     }
- 
+
     /**
      * Создание заглушки для миниатюры
      */
     private function createPlaceholderThumbnail()
     {
-        $placeholder = imagecreate(self::THUMBNAIL_WIDTH, self::THUMBNAIL_HEIGHT);
+        $width = self::THUMBNAIL_WIDTH;
+        $height = self::THUMBNAIL_HEIGHT;
+        
+        $placeholder = imagecreate($width, $height);
         $backgroundColor = imagecolorallocate($placeholder, 240, 240, 240);
         $textColor = imagecolorallocate($placeholder, 150, 150, 150);
         
-        $text = 'Thumbnail';
-        $textWidth = imagefontwidth(5) * strlen($text);
-        $x = (self::THUMBNAIL_WIDTH - $textWidth) / 2;
-        $y = (self::THUMBNAIL_HEIGHT - imagefontheight(5)) / 2;
+        imagefilledrectangle($placeholder, 0, 0, $width, $height, $backgroundColor);
         
-        imagefilledrectangle($placeholder, 0, 0, self::THUMBNAIL_WIDTH, self::THUMBNAIL_HEIGHT, $backgroundColor);
-        imagestring($placeholder, 5, $x, $y, $text, $textColor);
+        $text = 'Thumbnail';
+        $font = 5; // Встроенный шрифт
+        $textWidth = imagefontwidth($font) * strlen($text);
+        $textHeight = imagefontheight($font);
+        $x = (int)(($width - $textWidth) / 2);
+        $y = (int)(($height - $textHeight) / 2);
+        
+        imagestring($placeholder, $font, $x, $y, $text, $textColor);
         
         ob_start();
         imagejpeg($placeholder);
@@ -317,6 +291,7 @@ class FighterPhoto extends ActiveRecord
         
         return $imageData;
     }
+
     /**
      * Упрощенная генерация описания (без AI API)
      */
