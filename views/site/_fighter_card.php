@@ -24,8 +24,22 @@ use app\models\FighterStatus;
             ];
             
             $status = $statusConfig[$model->status_id] ?? ['class' => 'bg-secondary', 'label' => 'Неизвестно'];
+            
+            // Определяем дату для отображения для опубликованных бойцов
+            $dateText = '';
+            if ($model->status_id == FighterStatus::STATUS_PUBLISHED) {
+                $displayDate = null;
+                if ($model->moderated_at) {
+                    $displayDate = $model->moderated_at;
+                } elseif ($model->updated_at) {
+                    $displayDate = $model->updated_at;
+                } else {
+                    $displayDate = $model->created_at;
+                }
+                $dateText = ' ' . Yii::$app->formatter->asDate($displayDate, 'php:d.m.Y');
+            }
             ?>
-            <span class="badge <?= $status['class'] ?>"><?= $status['label'] ?></span>
+            <span class="badge <?= $status['class'] ?>"><?= $status['label'] . $dateText ?></span>
             
             <?php if ($model->moderation_comment && in_array($model->status_id, [FighterStatus::STATUS_REJECTED, FighterStatus::STATUS_BLOCKED])): ?>
                 <small class="text-muted d-block mt-1" title="<?= Html::encode($model->moderation_comment) ?>">
@@ -109,17 +123,24 @@ use app\models\FighterStatus;
 
         <!-- Кнопка просмотра -->
         <div class="card-footer">
-            <?= Html::a('Подробнее', ['fighter/view', 'id' => $model->id], [
-                'class' => 'btn btn-primary btn-sm btn-block'
-            ]) ?>
-            
-            <!-- Для непромодерированных записей показываем иконку редактирования -->
-            <?php if (!Yii::$app->user->isGuest && in_array($model->status_id, [FighterStatus::STATUS_DRAFT, FighterStatus::STATUS_MODERATION, FighterStatus::STATUS_REJECTED])): ?>
-                <?= Html::a('<i class="bi bi-pencil"></i>', ['fighter/update', 'id' => $model->id], [
-                    'class' => 'btn btn-outline-secondary btn-sm mt-1',
-                    'title' => 'Редактировать'
-                ]) ?>
-            <?php endif; ?>
+            <?php 
+            if (Yii::$app->user->isGuest) {
+                echo Html::a('Подробнее', ['fighter/view', 'id' => $model->id], [
+                    'class' => 'btn btn-primary btn-sm btn-block',
+                    'target' => '_blank'
+                ]);
+            } else {
+                echo Html::a('Подробнее', ['fighter/view', 'id' => $model->id], [
+                    'class' => 'btn btn-primary btn-sm btn-block',
+                ]);
+                // Для черновиков и опубликованных записей показываем иконку редактирования
+                if (in_array($model->status_id, [FighterStatus::STATUS_DRAFT, FighterStatus::STATUS_PUBLISHED])) {
+                    echo Html::a('<i class="bi bi-pencil"></i>', ['fighter/update', 'id' => $model->id], [
+                        'class' => 'btn btn-outline-secondary btn-sm mt-1',
+                        'title' => 'Редактировать'
+                    ]);
+                }
+            }?>
         </div>
     </div>
 </div>

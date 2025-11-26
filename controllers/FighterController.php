@@ -21,6 +21,12 @@ class FighterController extends Controller
                 'class' => AccessControl::class,
                 'rules' => [
                     [
+                        'actions' => ['view'], // Разрешаем view для всех
+                        'allow' => true,
+                        'roles' => ['?', '@'], // И гости, и авторизованные
+                    ],
+                    [
+                        'actions' => ['create', 'update', 'delete', 'send-to-moderation'], // Остальные действия только для авторизованных
                         'allow' => true,
                         'roles' => ['@'],
                         'matchCallback' => function ($rule, $action) {

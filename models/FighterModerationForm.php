@@ -50,8 +50,8 @@ class FighterModerationForm extends Model
     public function getDecisionOptions(): array
     {
         return [
-            self::DECISION_APPROVE => 'Одобрить и опубликовать',
-            self::DECISION_REVISE => 'Отправить на доработку',
+            self::DECISION_APPROVE => 'Опубликовать',
+            self::DECISION_REVISE => 'Доработать',
             self::DECISION_BLOCK => 'Заблокировать',
         ];
     }

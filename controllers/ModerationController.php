@@ -100,7 +100,7 @@ class ModerationController extends Controller
                 if ($model->save(false)) {
                     Yii::$app->session->setFlash('success', 'Решение успешно применено.');
                     return $this->redirect(['verify']);
-                }
+                } 
                 Yii::$app->session->setFlash('error', 'Не удалось сохранить решение. Попробуйте еще раз.');
             }
         }
@@ -141,7 +141,7 @@ class ModerationController extends Controller
     {
         $model = Fighter::find()
             ->where(['id' => $id])
-            ->with(['user', 'status', 'militaryRank', 'awards.militaryAward', 'captures', 'photos'])
+            ->with(['user', 'status', 'militaryRank', 'awards.award', 'captures', 'photos'])
             ->one();
 
         if ($model === null) {

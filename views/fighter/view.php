@@ -15,8 +15,16 @@ use app\models\FighterStatus;
 /* @var $captures app\models\FighterCapture[] */
 
 $this->title = $model->fullName;
-$this->params['breadcrumbs'][] = ['label' => 'Мои бойцы', 'url' => ['site/user-fighters']];
-$this->params['breadcrumbs'][] = $this->title;
+
+// Для авторизованных пользователей показываем хлебные крошки
+if (!Yii::$app->user->isGuest) {
+    $this->params['breadcrumbs'][] = ['label' => 'Мои бойцы', 'url' => ['site/user-fighters']];
+    $this->params['breadcrumbs'][] = $this->title;
+} else {
+    // Для гостей упрощенные крошки или без них
+    $this->params['breadcrumbs'][] = ['label' => 'Мемориал', 'url' => ['site/index']];
+    $this->params['breadcrumbs'][] = $this->title;
+}
 
 // Регистрируем CSS файлы
 $this->registerCssFile('@web/css/returnStatus.css', [
@@ -33,8 +41,8 @@ $canSeeModeratorComment = $identity && ($canEdit || $identity->isModerator());
 
 // Проверяем, находится ли боец на модерации
 $isOnModeration = $model->status_id == FighterStatus::STATUS_MODERATION;
-// Разрешаем редактирование только если боец не на модерации
-$allowEditing = $canEdit && !$isOnModeration;
+// Разрешаем редактирование только если боец не на модерации и пользователь авторизован
+$allowEditing = !Yii::$app->user->isGuest && $canEdit && !$isOnModeration;
 
 // Получаем фото для отображения (основное или последнее)
 $displayPhoto = null;
@@ -54,7 +62,7 @@ if ($model->mainPhoto) {
     <div class="row mb-4">
         <div class="col-md-8">
             <h1><?= Html::encode($this->title) ?></h1>
-            <?php if ($isOnModeration): ?>
+            <?php if ($isOnModeration && !Yii::$app->user->isGuest): ?>
                 <div class="alert alert-warning mt-2 mb-0">
                     <i class="bi bi-clock-history"></i> 
                     <strong>Боец находится на проверке у модератора.</strong> 
@@ -64,7 +72,10 @@ if ($model->mainPhoto) {
         </div>
         <div class="col-md-4 text-end action-buttons">
             <div class="btn-group">
-                <?= Html::a('Назад', ['site/user-fighters'], ['class' => 'btn btn-secondary']) ?>
+                <?php if (!Yii::$app->user->isGuest): ?>
+                    <?= Html::a('Назад', ['site/user-fighters'], ['class' => 'btn btn-secondary']) ?>
+                <?php endif; ?>
+                
                 <?php if ($allowEditing): ?>
                     <?= Html::a('Редактировать', ['update', 'id' => $model->id], ['class' => 'btn btn-primary']) ?>
                     <?= Html::a('Удалить', ['delete', 'id' => $model->id], [
@@ -74,8 +85,8 @@ if ($model->mainPhoto) {
                             'method' => 'post',
                         ],
                     ]) ?>
-                <?php elseif ($canEdit && $isOnModeration): ?>
-                    <!-- Показываем информацию о недоступности редактирования -->
+                <?php elseif ($canEdit && $isOnModeration && !Yii::$app->user->isGuest): ?>
+                    <!-- Показываем информацию о недоступности редактирования только для авторизованных -->
                     <button class="btn btn-outline-secondary" disabled title="Редактирование недоступно во время модерации">
                         Редактировать
                     </button>
@@ -249,12 +260,14 @@ if ($model->mainPhoto) {
                             [
                                 'attribute' => 'created_at',
                                 'label' => 'Дата создания',
-                                'format' => 'datetime'
+                                'format' => 'datetime',
+                                'visible' => !Yii::$app->user->isGuest, // Только для авторизованных
                             ],
                             [
                                 'attribute' => 'updated_at',
                                 'label' => 'Дата обновления',
-                                'format' => 'datetime'
+                                'format' => 'datetime',
+                                'visible' => !Yii::$app->user->isGuest, // Только для авторизованных
                             ],
                             [
                                 'attribute' => 'moderation_comment',
@@ -308,6 +321,7 @@ if ($model->mainPhoto) {
                 'content' => $this->render('_additional_info_tab', [
                     'model' => $model,
                 ]),
+                'visible' => !Yii::$app->user->isGuest, // Только для авторизованных
             ],
         ],
     ]) ?>
